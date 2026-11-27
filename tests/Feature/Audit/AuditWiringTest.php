@@ -1,0 +1,242 @@
+<?php
+
+use App\Actions\Vault\CreateCredential;
+use App\Actions\Vault\CreateProject;
+use App\Actions\Vault\DeleteCredential;
+use App\Actions\Vault\DeleteProject;
+use App\Actions\Vault\IssueAccessToken;
+use App\Actions\Vault\LinkCredentialToProjects;
+use App\Actions\Vault\LinkProjectToCredentials;
+use App\Actions\Vault\RegenerateAccessToken;
+use App\Actions\Vault\RevokeAccessToken;
+use App\Actions\Vault\UpdateCredential;
+use App\Actions\Vault\UpdateProject;
+use App\Enums\CredentialType;
+use App\Exceptions\Vault\HostConflictException;
+use App\Models\AccessToken;
+use App\Models\AuditEntry;
+use App\Models\Credential;
+use App\Models\Project;
+use App\Models\User;
+use App\Vault\Audit\AuditChainVerifier;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
+
+beforeEach(function () {
+    $this->admin = User::factory()->create();
+    $this->actingAs($this->admin);
+});
+
+/**
+ * @return Collection<int, AuditEntry>
+ */
+function auditEntries(): Collection
+{
+    return AuditEntry::query()->orderBy('sequence')->get();
+}
+
+it('audits a project being created, updated and deleted', function () {
+    $project = app(CreateProject::class)->handle(['name' => 'Shop', 'slug' => 'shop', 'notes' => 'Contact Jane Doe']);
+    app(UpdateProject::class)->handle($project, ['name' => 'Webshop', 'notes' => 'Contact John Smith']);
+    app(DeleteProject::class)->handle($project);
+
+    $entries = auditEntries();
+
+    expect($entries->pluck('event')->all())->toBe(['project_created', 'project_updated', 'project_deleted'])
+        ->and($entries->pluck('subject_id')->unique()->all())->toBe([$project->id])
+        ->and($entries[0]->properties->toArray())->toBe(['name' => 'Shop', 'slug' => 'shop', 'notes' => 'changed'])
+        ->and($entries[1]->properties->toArray())->toBe(['name' => ['old' => 'Shop', 'new' => 'Webshop'], 'notes' => 'changed'])
+        ->and($entries[2]->properties->toArray())->toBe(['name' => 'Webshop', 'slug' => 'shop', 'subject_label' => 'Webshop'])
+        ->and((string) $entries[0]->causer_id)->toBe((string) $this->admin->id)
+        ->and(json_encode($entries))->not->toContain('Jane Doe')->not->toContain('John Smith');
+});
+
+it('audits a credential being created with exactly one entry', function () {
+    $project = Project::factory()->create();
+
+    $credential = app(CreateCredential::class)->handle(
+        ['name' => 'Magento', 'type' => CredentialType::HttpBasic, 'host' => 'repo.magento.com', 'username' => 'public-key', 'notes' => 'Ask Jane'],
+        'plaintext-secret-marker',
+        [$project->id],
+    );
+
+    $entry = AuditEntry::query()->sole();
+
+    expect($entry->event)->toBe('credential_created')
+        ->and($entry->subject_id)->toBe($credential->id)
+        ->and($entry->properties->toArray())->toBe([
+            'name' => 'Magento',
+            'type' => 'http-basic',
+            'host' => 'repo.magento.com',
+            'username' => 'public-key',
+            'project_ids' => [$project->id],
+            'secret' => 'changed',
+        ]);
+});
+
+it('audits one entry for an update and two when the secret changes too', function () {
+    $credential = Credential::factory()->forHost('repo.magento.com')->withSecret('old-secret')->create(['name' => 'Old name']);
+
+    app(UpdateCredential::class)->handle($credential, ['name' => 'New name']);
+    $afterRename = auditEntries();
+
+    app(UpdateCredential::class)->handle($credential, ['name' => 'Third name'], 'brand-new-secret');
+    $afterBoth = auditEntries();
+
+    expect($afterRename->pluck('event')->all())->toBe(['credential_updated'])
+        ->and($afterRename[0]->properties->toArray())->toBe(['name' => ['old' => 'Old name', 'new' => 'New name']])
+        ->and($afterBoth->pluck('event')->all())->toBe(['credential_updated', 'credential_updated', 'credential_secret_changed'])
+        ->and($afterBoth[2]->properties->toArray())->toBe(['secret' => 'changed']);
+});
+
+it('audits an update that changes only the secret as an update without changes plus the secret entry', function () {
+    $credential = Credential::factory()->withSecret('old-secret')->create();
+
+    app(UpdateCredential::class)->handle($credential, [], 'brand-new-secret');
+
+    $entries = auditEntries();
+
+    expect($entries->pluck('event')->all())->toBe(['credential_updated', 'credential_secret_changed'])
+        ->and($entries[0]->properties->toArray())->toBe([]);
+});
+
+it('audits a credential being deleted with a label', function () {
+    $credential = Credential::factory()->forHost('repo.magento.com')->create(['name' => 'Magento']);
+
+    app(DeleteCredential::class)->handle($credential);
+
+    $entry = AuditEntry::query()->sole();
+
+    expect($entry->event)->toBe('credential_deleted')
+        ->and($entry->subject_id)->toBe($credential->id)
+        ->and($entry->properties->toArray())->toBe(['name' => 'Magento', 'host' => 'repo.magento.com', 'subject_label' => 'Magento']);
+});
+
+it('audits link changes from both sides with the added and removed ids', function () {
+    $credential = Credential::factory()->create();
+    [$a, $b, $c] = Project::factory()->count(3)->create();
+
+    app(LinkCredentialToProjects::class)->handle($credential, [$a->id, $b->id]);
+    app(LinkCredentialToProjects::class)->handle($credential, [$b->id, $c->id]);
+    app(LinkProjectToCredentials::class)->handle($c, [$credential->id]);
+
+    $entries = auditEntries();
+
+    expect($entries->pluck('event')->unique()->all())->toBe(['credential_links_changed'])
+        ->and($entries)->toHaveCount(3)
+        ->and($entries[0]->properties->toArray())->toBe(['added' => [$a->id, $b->id], 'removed' => []])
+        ->and($entries[1]->properties->toArray())->toBe(['added' => [$c->id], 'removed' => [$a->id]])
+        ->and($entries[1]->subject_id)->toBe($credential->id)
+        ->and($entries[2]->subject_id)->toBe($c->id)
+        ->and($entries[2]->properties->toArray())->toBe(['added' => [], 'removed' => []]);
+});
+
+it('audits issuing, regenerating and revoking a token', function () {
+    $project = Project::factory()->create();
+    $expiresAt = CarbonImmutable::parse('2027-01-01 12:00:00', 'UTC');
+
+    $issued = app(IssueAccessToken::class)->handle('prod-web-01', [$project->id], ['203.0.113.7'], $expiresAt, $this->admin);
+    $oldPrefix = $issued->token->token_prefix;
+    $regenerated = app(RegenerateAccessToken::class)->handle($issued->token);
+    app(RevokeAccessToken::class)->handle($issued->token);
+    app(RevokeAccessToken::class)->handle($issued->token);
+
+    $entries = auditEntries();
+
+    expect($entries->pluck('event')->all())->toBe(['token_issued', 'token_regenerated', 'token_revoked'])
+        ->and($entries->pluck('subject_id')->unique()->all())->toBe([$issued->token->id])
+        ->and($entries[0]->properties->toArray())->toBe([
+            'name' => 'prod-web-01',
+            'token_prefix' => $oldPrefix,
+            'project_ids' => [$project->id],
+            'allowed_ips' => ['203.0.113.7'],
+            'expires_at' => '2027-01-01T12:00:00Z',
+        ])
+        ->and($entries[1]->properties->toArray())->toBe(['old_prefix' => $oldPrefix, 'new_prefix' => $regenerated->token->token_prefix])
+        ->and($entries[2]->properties->toArray())->toBe(['token_prefix' => $regenerated->token->token_prefix]);
+});
+
+it('audits issuing a token without an actor when called from the console', function () {
+    $this->app['auth']->forgetGuards();
+
+    $issued = app(IssueAccessToken::class)->handle('installer', [], null, null, null);
+
+    $entry = AuditEntry::query()->sole();
+
+    expect($entry->event)->toBe('token_issued')
+        ->and($entry->subject_id)->toBe($issued->token->id);
+});
+
+it('writes no entry when an action fails', function () {
+    $project = Project::factory()->create();
+    $project->credentials()->attach(Credential::factory()->forHost('repo.magento.com')->create());
+    $other = Credential::factory()->forHost('repo.magento.com')->create();
+
+    expect(fn () => app(LinkCredentialToProjects::class)->handle($other, [$project->id]))->toThrow(HostConflictException::class)
+        ->and(fn () => app(CreateCredential::class)->handle(
+            ['name' => 'Duplicate', 'type' => CredentialType::Bearer, 'host' => 'repo.magento.com'],
+            'secret',
+            [$project->id],
+        ))->toThrow(HostConflictException::class);
+
+    expect(AuditEntry::query()->count())->toBe(0)
+        ->and(DB::table('audit_log_head')->value('sequence'))->toBe(0);
+});
+
+it('audits a key rotation without any key material', function () {
+    Credential::factory()->count(2)->create();
+
+    $this->artisan('vault:rotate-key', ['--key' => vaultTestKey(2)])->assertSuccessful();
+
+    $entry = AuditEntry::query()->sole();
+
+    expect($entry->event)->toBe('key_rotated')
+        ->and($entry->subject_id)->toBeNull()
+        ->and($entry->properties->toArray())->toBe(['old_version' => 1, 'new_version' => 2, 'credential_count' => 2])
+        ->and(json_encode($entry))->not->toContain(substr(vaultTestKey(2), 7));
+});
+
+it('does not write an audit entry for a rotation that fails', function () {
+    $credential = Credential::factory()->create();
+    DB::table('credentials')->where('id', $credential->id)->update(['data_key_ciphertext' => base64_encode('corrupted')]);
+
+    $this->artisan('vault:rotate-key', ['--key' => vaultTestKey(2)])->assertFailed();
+
+    expect(AuditEntry::query()->count())->toBe(0);
+});
+
+it('never stores a secret, ciphertext, token hash or plain token in the audit log', function () {
+    $project = app(CreateProject::class)->handle(['name' => 'Shop', 'slug' => 'shop']);
+    $credential = app(CreateCredential::class)->handle(
+        ['name' => 'Magento', 'type' => CredentialType::HttpBasic, 'host' => 'repo.magento.com', 'username' => 'public-key'],
+        'plaintext-secret-marker',
+        [$project->id],
+    );
+    app(UpdateCredential::class)->handle($credential, ['name' => 'Renamed'], 'second-plaintext-secret-marker');
+    $issued = app(IssueAccessToken::class)->handle('prod-web-01', [$project->id], null, null, $this->admin);
+    $regenerated = app(RegenerateAccessToken::class)->handle($issued->token);
+    app(RevokeAccessToken::class)->handle($issued->token);
+    $this->artisan('vault:rotate-key', ['--key' => vaultTestKey(2)])->assertSuccessful();
+
+    $dump = json_encode([DB::table('activity_log')->get(), DB::table('audit_log_head')->get()]);
+    $stored = $credential->fresh();
+    $token = AccessToken::query()->find($issued->token->id);
+
+    foreach ([
+        'plaintext-secret-marker',
+        'second-plaintext-secret-marker',
+        $stored->secret_ciphertext,
+        $stored->data_key_ciphertext,
+        $token->token_hash,
+        hash('sha256', $issued->plainToken),
+        $issued->plainToken,
+        $regenerated->plainToken,
+        substr($regenerated->plainToken, 3),
+    ] as $forbidden) {
+        expect($dump)->not->toContain($forbidden);
+    }
+
+    expect(auditEntries()->count())->toBe(8)
+        ->and(app(AuditChainVerifier::class)->verify())->toBeNull();
+});
