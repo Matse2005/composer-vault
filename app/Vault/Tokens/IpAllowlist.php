@@ -2,6 +2,7 @@
 
 namespace App\Vault\Tokens;
 
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\IpUtils;
 
 class IpAllowlist
@@ -32,6 +33,30 @@ class IpAllowlist
         };
 
         return $maxPrefix !== null && (int) $prefix <= $maxPrefix;
+    }
+
+    /**
+     * Validate an allowlist and normalise it for storage: null or an empty list means no restriction and is stored as
+     * null.
+     *
+     * @param  array<int, string>|null  $entries
+     * @return array<int, string>|null
+     *
+     * @throws InvalidArgumentException When an entry is not an IP address or CIDR range.
+     */
+    public static function normalizeList(?array $entries): ?array
+    {
+        if ($entries === null || $entries === []) {
+            return null;
+        }
+
+        foreach ($entries as $entry) {
+            if (! self::isValidEntry($entry)) {
+                throw new InvalidArgumentException('The IP allowlist contains an entry that is not an IP address or CIDR range.');
+            }
+        }
+
+        return array_values($entries);
     }
 
     /**
