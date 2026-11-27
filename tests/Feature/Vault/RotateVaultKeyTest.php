@@ -125,16 +125,15 @@ it('works without any credentials', function () {
         ->and(Artisan::output())->toContain('VAULT_KEY_VERSION=2');
 });
 
-it('asks for confirmation in production and stops when declined', function () {
+it('does not rotate in production without confirmation', function () {
     Credential::factory()->create();
     $before = credentialRowSnapshot();
     $this->app['env'] = 'production';
 
-    $this->artisan('vault:rotate-key', ['--key' => vaultTestKey(2)])
-        ->expectsConfirmation('Are you sure you want to run this command?', 'no')
-        ->assertFailed();
+    expect(Artisan::call('vault:rotate-key', ['--key' => vaultTestKey(2), '--no-interaction' => true]))->toBe(1);
 
-    expect(credentialRowSnapshot())->toEqual($before);
+    expect(credentialRowSnapshot())->toEqual($before)
+        ->and(Artisan::output())->not->toContain('VAULT_KEY=');
 });
 
 it('skips the confirmation in production with --force', function () {
