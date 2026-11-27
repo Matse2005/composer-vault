@@ -102,9 +102,13 @@ it('shows the identical page with a 404 for every invalid state', function () {
         'accepted' => invitationPage($acceptedToken),
     ]);
 
-    // Vite only emits its font preload tags on the first response of an app instance, which has nothing to do with
-    // the invitation, so they are left out of the comparison.
-    $withoutPreloads = fn (TestResponse $response): string => preg_replace('/<link rel="preload"[^>]*>\s*/', '', $response->getContent());
+    // Vite only emits its font preload tags on the first response of an app instance, and every response carries its
+    // own Content Security Policy nonce. Neither has anything to do with the invitation, so they are left out.
+    $withoutPreloads = fn (TestResponse $response): string => preg_replace(
+        ['/<link rel="preload"[^>]*>\s*/', '/ nonce="[^"]*"/'],
+        ['', ''],
+        $response->getContent(),
+    );
 
     foreach ($responses as $state => $response) {
         $response->assertNotFound()->assertSee(INVALID_INVITATION_MESSAGE);

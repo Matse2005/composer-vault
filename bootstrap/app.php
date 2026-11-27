@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\ApiExceptionRenderer;
+use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\AuthenticateAccessToken;
 use App\Http\Middleware\BlockExcessiveFailures;
 use App\Http\Middleware\EnsureSecondFactor;
@@ -14,6 +15,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Spatie\Csp\AddCspHeaders;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -29,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // First in the web group, so a blocked address never starts a session or reaches the application.
         $middleware->prependToGroup('web', RestrictAdminIps::class);
+        $middleware->appendToGroup('web', [AddSecurityHeaders::class, AddCspHeaders::class]);
 
         $middleware->group('vault-api', [
             SetNoStoreHeaders::class,

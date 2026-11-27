@@ -1,33 +1,11 @@
 <x-layouts::auth :title="__('Two-factor authentication')">
     <div class="flex flex-col gap-6">
+        {{-- The component logic is registered as Alpine.data('twoFactorChallenge') in resources/js/alpine-components.js. --}}
         <div
             class="relative w-full h-auto"
             x-cloak
-            x-data="{
-                showRecoveryInput: @js($errors->has('recovery_code')),
-                code: '',
-                recovery_code: '',
-                focusOtp() {
-                    this.$nextTick(() => this.$refs.otp?.querySelector('input')?.focus());
-                },
-                init() {
-                    if (! this.showRecoveryInput) {
-                        this.focusOtp();
-                    }
-                },
-                toggleInput() {
-                    this.showRecoveryInput = !this.showRecoveryInput;
-
-                    this.code = '';
-                    this.recovery_code = '';
-
-                    $nextTick(() => {
-                        this.showRecoveryInput
-                            ? this.$refs.recovery_code?.focus()
-                            : this.focusOtp();
-                    });
-                },
-            }"
+            x-data="twoFactorChallenge"
+            data-recovery-open="{{ $errors->has('recovery_code') ? 'true' : 'false' }}"
         >
             <div x-show="!showRecoveryInput">
                 <x-auth-header
