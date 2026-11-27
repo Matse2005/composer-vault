@@ -4,4 +4,4 @@ Composer Vault is a self-hosted server that stores Composer credentials (for exa
 
 Status: in development
 
-The design and the build plans are in [docs/plans/](docs/plans/).
+The design and the build plans are in [docs/plans/](docs/plans/). The HTTP interface that clients use is described in the [API contract](docs/api.md).
