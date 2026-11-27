@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use App\Http\ApiError;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
@@ -12,13 +13,14 @@ use Throwable;
 
 /**
  * Renders every exception on api/* as the error format of the API contract, never with a message or trace,
- * also when APP_DEBUG is true. Other requests are left to the default handler.
+ * also when APP_DEBUG is true. Other requests are left to the default handler, and so is an
+ * HttpResponseException, which already carries the response to send (the rate limiter throws one).
  */
 class ApiExceptionRenderer
 {
     public function __invoke(Throwable $exception, Request $request): ?JsonResponse
     {
-        if (! $request->is('api/*')) {
+        if (! $request->is('api/*') || $exception instanceof HttpResponseException) {
             return null;
         }
 
