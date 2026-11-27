@@ -1,0 +1,111 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Exceptions\Vault\DecryptionFailedException;
+use App\Exceptions\Vault\InvalidVaultKeyException;
+use App\Models\Credential;
+use App\Vault\Crypto\KeyProvider;
+use App\Vault\Crypto\MasterKey;
+use App\Vault\Crypto\RotatingKeyProvider;
+use App\Vault\Crypto\SecretCipher;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
+use Illuminate\Console\Command;
+use Illuminate\Console\ConfirmableTrait;
+use Illuminate\Support\Facades\DB;
+
+#[Signature('vault:rotate-key {--key= : Use this new key (base64:...) instead of generating one} {--force : Skip the confirmation in production}')]
+#[Description('Re-encrypt the data key of every credential with a new master key')]
+class RotateVaultKey extends Command
+{
+    use ConfirmableTrait;
+
+    /**
+     * Execute the console command.
+     *
+     * Every data key is re-encrypted in memory first. Rows are only written, in one transaction, when all of
+     * them succeeded, so a corrupted row leaves the database untouched. Secret ciphertexts never change.
+     *
+     * @todo phase-4 Write an audit entry (AuditAction::KeyRotated) once the audit log exists.
+     */
+    public function handle(KeyProvider $keyProvider): int
+    {
+        if (! $this->confirmToProceed()) {
+            return self::FAILURE;
+        }
+
+        try {
+            $current = $keyProvider->current();
+            $newVersion = max($current->version, (int) Credential::query()->max('key_version')) + 1;
+            $newKey = MasterKey::fromEncoded(
+                $newVersion,
+                $this->option('key') ?? 'base64:'.base64_encode(random_bytes(MasterKey::KEY_BYTES)),
+                'The --key option',
+            );
+        } catch (InvalidVaultKeyException $exception) {
+            $this->components->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $cipher = new SecretCipher(new RotatingKeyProvider($newKey, $keyProvider));
+        $failedIds = [];
+        $rotated = 0;
+
+        DB::transaction(function () use ($cipher, &$failedIds, &$rotated): void {
+            $rewrapped = [];
+
+            foreach (Credential::query()->lockForUpdate()->get() as $credential) {
+                try {
+                    $rewrapped[$credential->id] = $cipher->rewrap($credential->id, $credential->encryptedSecret());
+                } catch (DecryptionFailedException) {
+                    $failedIds[] = $credential->id;
+                }
+            }
+
+            if ($failedIds !== []) {
+                return;
+            }
+
+            foreach ($rewrapped as $id => $encrypted) {
+                DB::table('credentials')->where('id', $id)->update([
+                    'data_key_ciphertext' => $encrypted->dataKeyCiphertext,
+                    'key_version' => $encrypted->keyVersion,
+                ]);
+            }
+
+            $rotated = count($rewrapped);
+        });
+
+        if ($failedIds !== []) {
+            $this->components->error(count($failedIds).' credential(s) could not be decrypted with the known keys. Nothing was changed.');
+            $this->line('Credential IDs: '.implode(', ', $failedIds));
+
+            return self::FAILURE;
+        }
+
+        $this->printEnvChanges($current, $newKey, $rotated);
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Print the new key and the exact env changes, once.
+     */
+    private function printEnvChanges(MasterKey $current, MasterKey $newKey, int $rotated): void
+    {
+        $previousKeys = trim((string) config('vault.previous_keys'));
+        $oldEntry = $current->version.':'.config('vault.key');
+
+        $this->components->info("Re-encrypted {$rotated} credential(s) with key version {$newKey->version}.");
+        $this->newLine();
+        $this->line('Set these values in your environment now:');
+        $this->newLine();
+        $this->line('VAULT_KEY='.MasterKey::PREFIX.base64_encode($newKey->bytes));
+        $this->line("VAULT_KEY_VERSION={$newKey->version}");
+        $this->line('VAULT_PREVIOUS_KEYS='.($previousKeys === '' ? $oldEntry : "{$previousKeys},{$oldEntry}"));
+        $this->newLine();
+        $this->components->warn('Remove the old entry from VAULT_PREVIOUS_KEYS only after every credential is confirmed on the new version. vault:doctor will report when that is safe.');
+    }
+}
