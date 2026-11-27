@@ -5,6 +5,7 @@ use App\Models\AccessLog;
 use App\Models\AccessToken;
 use App\Models\Credential;
 use App\Models\Project;
+use App\Vault\Health\HealthRunner;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -36,6 +37,25 @@ new #[Title('Dashboard')] class extends Component {
             ->where('result', '!=', AccessResult::Ok->value)
             ->where('created_at', '>=', now()->subDay())
             ->count();
+    }
+
+    /**
+     * One line about the latest health run.
+     */
+    #[Computed]
+    public function healthSummary(): string
+    {
+        $latest = app(HealthRunner::class)->latest();
+
+        if ($latest === null) {
+            return __('No health results yet, see Security status');
+        }
+
+        $problems = HealthRunner::problemCount($latest['rows']);
+
+        return $problems === 0
+            ? __('All checks pass')
+            : trans_choice(':count problem, see Security status|:count problems, see Security status', $problems);
     }
 
     /**
@@ -75,6 +95,8 @@ new #[Title('Dashboard')] class extends Component {
             <flux:heading size="xl" data-test="failed-request-count">{{ $this->failedRequestCount }}</flux:heading>
         </a>
     </div>
+
+    <flux:link :href="route('security-status')" wire:navigate data-test="health-summary">{{ $this->healthSummary }}</flux:link>
 
     <div class="space-y-3">
         <flux:heading size="lg" level="2">{{ __('Recent failed API requests') }}</flux:heading>
