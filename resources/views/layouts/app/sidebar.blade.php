@@ -53,6 +53,8 @@
                 </flux:sidebar.item>
             </flux:sidebar.nav>
 
+            <flux:text class="px-3 text-xs" data-test="app-version">{{ __('Composer Vault :version', ['version' => config('vault.version')]) }}</flux:text>
+
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 
