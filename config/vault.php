@@ -54,4 +54,16 @@ return [
 
     'trusted_proxies' => env('TRUSTED_PROXIES', ''),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Access Log Retention
+    |--------------------------------------------------------------------------
+    |
+    | The number of days that API access log rows are kept. Older rows are
+    | removed by the daily model:prune task.
+    |
+    */
+
+    'access_log_retention_days' => (int) env('VAULT_ACCESS_LOG_RETENTION_DAYS', 90),
+
 ];
