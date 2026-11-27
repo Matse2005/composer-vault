@@ -45,9 +45,9 @@ it('audits a project being created, updated and deleted', function () {
 
     expect($entries->pluck('event')->all())->toBe(['project_created', 'project_updated', 'project_deleted'])
         ->and($entries->pluck('subject_id')->unique()->all())->toBe([$project->id])
-        ->and($entries[0]->properties->toArray())->toBe(['name' => 'Shop', 'slug' => 'shop', 'notes' => 'changed'])
-        ->and($entries[1]->properties->toArray())->toBe(['name' => ['old' => 'Shop', 'new' => 'Webshop'], 'notes' => 'changed'])
-        ->and($entries[2]->properties->toArray())->toBe(['name' => 'Webshop', 'slug' => 'shop', 'subject_label' => 'Webshop'])
+        ->and($entries[0]->properties->toArray())->toEqual(['name' => 'Shop', 'slug' => 'shop', 'notes' => 'changed'])
+        ->and($entries[1]->properties->toArray())->toEqual(['name' => ['old' => 'Shop', 'new' => 'Webshop'], 'notes' => 'changed'])
+        ->and($entries[2]->properties->toArray())->toEqual(['name' => 'Webshop', 'slug' => 'shop', 'subject_label' => 'Webshop'])
         ->and((string) $entries[0]->causer_id)->toBe((string) $this->admin->id)
         ->and(json_encode($entries))->not->toContain('Jane Doe')->not->toContain('John Smith');
 });
@@ -65,7 +65,7 @@ it('audits a credential being created with exactly one entry', function () {
 
     expect($entry->event)->toBe('credential_created')
         ->and($entry->subject_id)->toBe($credential->id)
-        ->and($entry->properties->toArray())->toBe([
+        ->and($entry->properties->toArray())->toEqual([
             'name' => 'Magento',
             'type' => 'http-basic',
             'host' => 'repo.magento.com',
@@ -85,9 +85,9 @@ it('audits one entry for an update and two when the secret changes too', functio
     $afterBoth = auditEntries();
 
     expect($afterRename->pluck('event')->all())->toBe(['credential_updated'])
-        ->and($afterRename[0]->properties->toArray())->toBe(['name' => ['old' => 'Old name', 'new' => 'New name']])
+        ->and($afterRename[0]->properties->toArray())->toEqual(['name' => ['old' => 'Old name', 'new' => 'New name']])
         ->and($afterBoth->pluck('event')->all())->toBe(['credential_updated', 'credential_updated', 'credential_secret_changed'])
-        ->and($afterBoth[2]->properties->toArray())->toBe(['secret' => 'changed']);
+        ->and($afterBoth[2]->properties->toArray())->toEqual(['secret' => 'changed']);
 });
 
 it('audits an update that changes only the secret as an update without changes plus the secret entry', function () {
@@ -98,7 +98,7 @@ it('audits an update that changes only the secret as an update without changes p
     $entries = auditEntries();
 
     expect($entries->pluck('event')->all())->toBe(['credential_updated', 'credential_secret_changed'])
-        ->and($entries[0]->properties->toArray())->toBe([]);
+        ->and($entries[0]->properties->toArray())->toEqual([]);
 });
 
 it('audits a credential being deleted with a label', function () {
@@ -110,7 +110,7 @@ it('audits a credential being deleted with a label', function () {
 
     expect($entry->event)->toBe('credential_deleted')
         ->and($entry->subject_id)->toBe($credential->id)
-        ->and($entry->properties->toArray())->toBe(['name' => 'Magento', 'host' => 'repo.magento.com', 'subject_label' => 'Magento']);
+        ->and($entry->properties->toArray())->toEqual(['name' => 'Magento', 'host' => 'repo.magento.com', 'subject_label' => 'Magento']);
 });
 
 it('audits link changes from both sides with the added and removed ids', function () {
@@ -125,11 +125,11 @@ it('audits link changes from both sides with the added and removed ids', functio
 
     expect($entries->pluck('event')->unique()->all())->toBe(['credential_links_changed'])
         ->and($entries)->toHaveCount(3)
-        ->and($entries[0]->properties->toArray())->toBe(['added' => [$a->id, $b->id], 'removed' => []])
-        ->and($entries[1]->properties->toArray())->toBe(['added' => [$c->id], 'removed' => [$a->id]])
+        ->and($entries[0]->properties->toArray())->toEqual(['added' => [$a->id, $b->id], 'removed' => []])
+        ->and($entries[1]->properties->toArray())->toEqual(['added' => [$c->id], 'removed' => [$a->id]])
         ->and($entries[1]->subject_id)->toBe($credential->id)
         ->and($entries[2]->subject_id)->toBe($c->id)
-        ->and($entries[2]->properties->toArray())->toBe(['added' => [], 'removed' => []]);
+        ->and($entries[2]->properties->toArray())->toEqual(['added' => [], 'removed' => []]);
 });
 
 it('audits issuing, regenerating and revoking a token', function () {
@@ -146,15 +146,15 @@ it('audits issuing, regenerating and revoking a token', function () {
 
     expect($entries->pluck('event')->all())->toBe(['token_issued', 'token_regenerated', 'token_revoked'])
         ->and($entries->pluck('subject_id')->unique()->all())->toBe([$issued->token->id])
-        ->and($entries[0]->properties->toArray())->toBe([
+        ->and($entries[0]->properties->toArray())->toEqual([
             'name' => 'prod-web-01',
             'token_prefix' => $oldPrefix,
             'project_ids' => [$project->id],
             'allowed_ips' => ['203.0.113.7'],
             'expires_at' => '2027-01-01T12:00:00Z',
         ])
-        ->and($entries[1]->properties->toArray())->toBe(['old_prefix' => $oldPrefix, 'new_prefix' => $regenerated->token->token_prefix])
-        ->and($entries[2]->properties->toArray())->toBe(['token_prefix' => $regenerated->token->token_prefix]);
+        ->and($entries[1]->properties->toArray())->toEqual(['old_prefix' => $oldPrefix, 'new_prefix' => $regenerated->token->token_prefix])
+        ->and($entries[2]->properties->toArray())->toEqual(['token_prefix' => $regenerated->token->token_prefix]);
 });
 
 it('audits issuing a token without an actor when called from the console', function () {
@@ -193,7 +193,7 @@ it('audits a key rotation without any key material', function () {
 
     expect($entry->event)->toBe('key_rotated')
         ->and($entry->subject_id)->toBeNull()
-        ->and($entry->properties->toArray())->toBe(['old_version' => 1, 'new_version' => 2, 'credential_count' => 2])
+        ->and($entry->properties->toArray())->toEqual(['old_version' => 1, 'new_version' => 2, 'credential_count' => 2])
         ->and(json_encode($entry))->not->toContain(substr(vaultTestKey(2), 7));
 });
 

@@ -21,7 +21,7 @@ it('audits a real login with the admin as subject and actor', function () {
         ->and($entry->subject_type)->toBe(User::class)
         ->and($entry->subject_id)->toBe((string) $user->id)
         ->and((string) $entry->causer_id)->toBe((string) $user->id)
-        ->and($entry->properties->toArray())->toBe([])
+        ->and($entry->properties->toArray())->toEqual([])
         ->and($entry->ip)->not->toBeNull();
 });
 
@@ -52,7 +52,7 @@ it('audits a passkey that was added and removed without storing its name', funct
     $entries = AuditEntry::query()->orderBy('sequence')->get();
 
     expect($entries->pluck('event')->all())->toBe(['passkey_added', 'passkey_removed'])
-        ->and($entries[0]->properties->toArray())->toBe(['passkey_id' => 7])
+        ->and($entries[0]->properties->toArray())->toEqual(['passkey_id' => 7])
         ->and(json_encode($entries))->not->toContain('Jane Doe');
 });
 
