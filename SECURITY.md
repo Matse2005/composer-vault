@@ -16,7 +16,3 @@ Please include:
 - Any suggested fix, if you have one.
 
 Do not include real credentials, tokens or keys in the report.
-
-## What to expect
-
-I acknowledge every report within 7 days. After that I keep you informed about the assessment and the fix, and I agree a disclosure date with you before anything is made public.
