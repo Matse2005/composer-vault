@@ -3,12 +3,21 @@
 use App\Models\AccessToken;
 use Database\Factories\AccessTokenFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Vite;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)->in('Feature', 'Unit');
 
 pest()->use(RefreshDatabase::class)->in('Feature');
+
+pest()->extend(TestCase::class)->use(RefreshDatabase::class)->in('Browser');
+
+// The browser tests load the built assets, never a running Vite dev server, so the CSP is checked on what ships.
+pest()->beforeEach(function (): void {
+    app(Vite::class)->useHotFile(storage_path('framework/no-vite-hot-file'));
+    config(['vault.key' => vaultTestKey(), 'vault.key_version' => 1, 'vault.previous_keys' => '']);
+})->in('Browser');
 
 pest()->beforeEach(function (): void {
     config(['vault.key' => vaultTestKey(), 'vault.key_version' => 1, 'vault.previous_keys' => '']);
