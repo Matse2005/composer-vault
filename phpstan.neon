@@ -10,4 +10,10 @@ parameters:
         - database/
         - routes/
 
-    level: 7
+    level: 8
+
+    ignoreErrors:
+        # Used by the Livewire page resources/views/pages/settings/⚡profile.blade.php, which PHPStan does not analyse.
+        -
+            identifier: trait.unused
+            path: app/Concerns/ProfileValidationRules.php

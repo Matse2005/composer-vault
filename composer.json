@@ -1,15 +1,19 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/livewire-starter-kit",
+    "name": "matse2005/composer-vault",
     "type": "project",
-    "description": "The official Laravel starter kit for Livewire.",
+    "description": "Self-hosted Composer credential vault.",
     "keywords": [
-        "laravel",
-        "framework"
+        "composer",
+        "credentials",
+        "secrets",
+        "vault",
+        "laravel"
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.5",
+        "ext-sodium": "*",
         "laravel/chisel": "^0.1.0",
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",
