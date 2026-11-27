@@ -37,7 +37,7 @@ it('writes an entry with the chain fields', function () {
         ->and($stored->causer_type)->toBe(User::class)
         ->and((string) $stored->causer_id)->toBe((string) $admin->id)
         ->and($stored->ip)->toBe('203.0.113.9')
-        ->and($stored->properties->toArray())->toBe(['name' => 'Shop'])
+        ->and($stored->properties->toArray())->toEqual(['name' => 'Shop'])
         ->and($stored->created_at->micro)->toBe(0);
 });
 
@@ -97,7 +97,7 @@ it('sanitizes the changes and adds the subject label', function () {
         'token_hash' => 'hash-marker',
     ], subjectLabel: 'Magento');
 
-    expect($entry->fresh()->properties->toArray())->toBe(['name' => 'Magento', 'secret' => 'changed', 'subject_label' => 'Magento'])
+    expect($entry->fresh()->properties->toArray())->toEqual(['name' => 'Magento', 'secret' => 'changed', 'subject_label' => 'Magento'])
         ->and(json_encode(DB::table('activity_log')->get()))
         ->not->toContain('plaintext-secret-marker')
         ->not->toContain('ciphertext-marker')
