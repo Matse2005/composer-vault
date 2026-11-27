@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Vault\Crypto\EnvKeyProvider;
 use App\Vault\Crypto\KeyProvider;
+use App\Vault\Tokens\TrustedProxyList;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        TrustedProxyList::parse(config('vault.trusted_proxies'));
+
         $this->configureDefaults();
     }
 
