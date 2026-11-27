@@ -56,6 +56,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | API Limits
+    |--------------------------------------------------------------------------
+    |
+    | The number of requests a token may make per minute, and the number of
+    | failed attempts (401 and 403 responses) an IP address may make per minute
+    | before it is blocked for the rest of that minute.
+    |
+    */
+
+    'api' => [
+        'rate_limit_per_minute' => (int) env('VAULT_API_RATE_LIMIT', 60),
+        'failed_attempts_per_minute' => (int) env('VAULT_API_FAILED_ATTEMPTS', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Access Log Retention
     |--------------------------------------------------------------------------
     |

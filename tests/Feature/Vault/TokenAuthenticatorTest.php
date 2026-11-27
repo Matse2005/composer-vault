@@ -5,21 +5,10 @@ use App\Enums\AccessResult;
 use App\Models\AccessToken;
 use App\Vault\Tokens\TokenAuthenticationResult;
 use App\Vault\Tokens\TokenAuthenticator;
-use Database\Factories\AccessTokenFactory;
 
 function authenticate(?string $bearer, string $ip = '203.0.113.9'): TokenAuthenticationResult
 {
     return app(TokenAuthenticator::class)->authenticate($bearer, $ip);
-}
-
-/**
- * @return array{AccessToken, string}
- */
-function tokenWithPlain(?AccessTokenFactory $factory = null): array
-{
-    $token = ($factory ?? AccessToken::factory())->withPlainToken()->create();
-
-    return [$token, AccessTokenFactory::plainTokenFor($token)];
 }
 
 it('accepts a valid token and records the use without touching updated_at', function () {

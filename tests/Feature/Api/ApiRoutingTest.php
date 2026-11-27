@@ -2,20 +2,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Testing\TestResponse;
-
-/**
- * Assert that a response is exactly the contract's error body, with the headers every API response carries.
- */
-function assertApiError(TestResponse $response, int $status, string $code): void
-{
-    $response->assertStatus($status);
-
-    expect($response->getContent())->toBe(json_encode(['error' => $code]))
-        ->and($response->headers->get('Content-Type'))->toContain('application/json')
-        ->and($response->headers->get('Cache-Control'))->toContain('no-store')
-        ->and($response->headers->get('Pragma'))->toBe('no-cache');
-}
 
 it('registers the composer auth route under the v1 prefix', function () {
     expect(route('api.v1.composer-auth', ['slug' => 'my-project'], absolute: false))
