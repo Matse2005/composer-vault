@@ -19,20 +19,24 @@ class UpdateCredential
     public function __construct(
         private HostConflictGuard $hostConflictGuard,
         private AuditLogger $auditLogger,
+        private LinkCredentialToProjects $linkCredentialToProjects,
     ) {}
 
     /**
      * Update a credential. The secret is replaced only when a non-empty new secret is given.
      *
-     * One entry is audited for the update, and a second one when the secret was replaced.
+     * One entry is audited for the update, a second one when the secret was replaced, and a third one when the
+     * projects are given and differ from the current ones. Everything happens in one transaction, so a host
+     * conflict in the new projects leaves the credential unchanged.
      *
      * @param  array{name?: string, type?: mixed, host?: string, username?: string|null, notes?: string|null}  $attributes
+     * @param  array<int, string>|null  $projectIds  The projects the credential should be linked to, or null to leave the links alone.
      *
      * @throws HostConflictException
      */
-    public function handle(Credential $credential, array $attributes, #[SensitiveParameter] ?string $newSecret = null): Credential
+    public function handle(Credential $credential, array $attributes, #[SensitiveParameter] ?string $newSecret = null, ?array $projectIds = null): Credential
     {
-        return DB::transaction(function () use ($credential, $attributes, $newSecret): Credential {
+        return DB::transaction(function () use ($credential, $attributes, $newSecret, $projectIds): Credential {
             if (isset($attributes['host'])) {
                 $this->hostConflictGuard->assertCanChangeHost($credential, HostName::normalize($attributes['host']));
             }
@@ -59,7 +63,22 @@ class UpdateCredential
                 $this->auditLogger->record(AuditAction::CredentialSecretChanged, $credential, ['secret' => 'changed']);
             }
 
+            if ($projectIds !== null && $this->linksDiffer($credential, $projectIds)) {
+                $this->linkCredentialToProjects->handle($credential, $projectIds);
+            }
+
             return $credential;
         });
+    }
+
+    /**
+     * @param  array<int, string>  $projectIds
+     */
+    private function linksDiffer(Credential $credential, array $projectIds): bool
+    {
+        $current = $credential->projects()->pluck('projects.id')->sort()->values()->all();
+        $wanted = collect($projectIds)->unique()->sort()->values()->all();
+
+        return $current !== $wanted;
     }
 }

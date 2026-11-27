@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
@@ -35,6 +36,22 @@ class AccessLog extends Model
     public function prunable(): Builder
     {
         return static::query()->where('created_at', '<', now()->subDays((int) config('vault.access_log_retention_days')));
+    }
+
+    /**
+     * @return BelongsTo<AccessToken, $this>
+     */
+    public function accessToken(): BelongsTo
+    {
+        return $this->belongsTo(AccessToken::class);
+    }
+
+    /**
+     * @return BelongsTo<Project, $this>
+     */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     /**

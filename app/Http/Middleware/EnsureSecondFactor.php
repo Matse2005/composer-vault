@@ -5,10 +5,11 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Sends every authenticated admin without a second factor (a confirmed authenticator app or at least one passkey) to
+ * Ends the session of a deactivated admin. Sends every authenticated admin without a second factor (a confirmed authenticator app or at least one passkey) to
  * the security page, where it can be set up. Only the routes needed for that setup and for logging out stay open.
  */
 class EnsureSecondFactor
@@ -34,6 +35,14 @@ class EnsureSecondFactor
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
+
+        if ($user instanceof User && $user->isDeactivated() && ! $request->routeIs('logout')) {
+            Auth::guard()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login');
+        }
 
         if (! $user instanceof User || $user->hasSecondFactor() || $request->routeIs(...self::ALLOWED_ROUTES)) {
             return $next($request);

@@ -11,9 +11,33 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
+                <flux:sidebar.group :heading="__('Vault')" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="folder" :href="route('projects.index')" :current="request()->routeIs('projects.*')" wire:navigate>
+                        {{ __('Projects') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="key" :href="route('credentials.index')" :current="request()->routeIs('credentials.*')" wire:navigate>
+                        {{ __('Credentials') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="ticket" :href="route('tokens.index')" :current="request()->routeIs('tokens.*')" wire:navigate>
+                        {{ __('Tokens') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+
+                <flux:sidebar.group :heading="__('Activity')" class="grid">
+                    <flux:sidebar.item icon="clipboard-document-list" :href="route('logs.access')" :current="request()->routeIs('logs.access')" wire:navigate>
+                        {{ __('Access log') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="shield-check" :href="route('logs.audit')" :current="request()->routeIs('logs.audit')" wire:navigate>
+                        {{ __('Audit log') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+
+                <flux:sidebar.group :heading="__('Administration')" class="grid">
+                    <flux:sidebar.item icon="users" :href="route('admins.index')" :current="request()->routeIs('admins.*')" wire:navigate>
+                        {{ __('Admins') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
@@ -21,12 +45,8 @@
             <flux:spacer />
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
+                <flux:sidebar.item icon="folder-git-2" href="https://github.com/Matse2005/composer-vault" target="_blank">
                     {{ __('Repository') }}
-                </flux:sidebar.item>
-
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
                 </flux:sidebar.item>
             </flux:sidebar.nav>
 

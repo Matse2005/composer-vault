@@ -6,6 +6,8 @@ use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -25,6 +27,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $two_factor_recovery_codes
  * @property Carbon|null $two_factor_confirmed_at
  * @property string|null $remember_token
+ * @property Carbon|null $deactivated_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -44,8 +47,28 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     {
         return [
             'email_verified_at' => 'datetime',
+            'deactivated_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Limit a query to admins who can still log in.
+     *
+     * @param  Builder<User>  $query
+     */
+    #[Scope]
+    protected function active(Builder $query): void
+    {
+        $query->whereNull('deactivated_at');
+    }
+
+    /**
+     * Determine whether the admin was deactivated and may no longer log in.
+     */
+    public function isDeactivated(): bool
+    {
+        return $this->deactivated_at !== null;
     }
 
     /**

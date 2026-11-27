@@ -17,3 +17,8 @@ parameters:
         -
             identifier: trait.unused
             path: app/Concerns/ProfileValidationRules.php
+
+        # Used by Livewire pages in resources/views/pages, which PHPStan does not analyse.
+        -
+            identifier: trait.unused
+            path: app/Livewire/Concerns/*
