@@ -38,10 +38,10 @@ it('links to the project repository and not to the starter kit', function () {
         ->assertDontSee('laravel.com/docs/starter-kits', false);
 });
 
-it('does not show a security status link before it exists', function () {
+it('links to the security status page', function () {
     $this->actingAs(User::factory()->withTwoFactor()->create());
 
-    $this->get(route('dashboard'))->assertOk()->assertDontSee('Security status');
+    $this->get(route('dashboard'))->assertOk()->assertSee('Security status')->assertSee(route('security-status'), false);
 });
 
 it('shows the flash message of the previous action', function () {
@@ -63,7 +63,7 @@ it('keeps the admin pages behind the second factor', function () {
     $this->actingAs(User::factory()->create());
 
     // Each ticket adds the routes of its own pages to this list.
-    foreach (['dashboard', 'projects.index', 'projects.create', 'credentials.index', 'credentials.create', 'tokens.index', 'tokens.create', 'logs.access', 'logs.audit', 'admins.index'] as $name) {
+    foreach (['dashboard', 'projects.index', 'projects.create', 'credentials.index', 'credentials.create', 'tokens.index', 'tokens.create', 'logs.access', 'logs.audit', 'admins.index', 'security-status'] as $name) {
         $this->get(route($name))->assertRedirect(route('security.edit'));
     }
 });

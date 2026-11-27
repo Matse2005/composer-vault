@@ -29,4 +29,5 @@ Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
     Route::livewire('logs/audit', 'pages::logs.audit')->name('logs.audit');
 
     Route::livewire('admins', 'pages::admins.index')->name('admins.index');
+    Route::livewire('security-status', 'pages::security-status')->name('security-status');
 });

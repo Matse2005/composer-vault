@@ -8,6 +8,17 @@ use App\Models\AccessToken;
 use App\Vault\Audit\AuditAuthenticationEvents;
 use App\Vault\Crypto\EnvKeyProvider;
 use App\Vault\Crypto\KeyProvider;
+use App\Vault\Health\AdminExistsCheck;
+use App\Vault\Health\AuditChainCheck;
+use App\Vault\Health\EnvFilePermissionsCheck;
+use App\Vault\Health\HttpsCheck;
+use App\Vault\Health\KeyVersionsCheck;
+use App\Vault\Health\SecondFactorCheck;
+use App\Vault\Health\SessionCheck;
+use App\Vault\Health\SlackWebhookChannel;
+use App\Vault\Health\SodiumCheck;
+use App\Vault\Health\TrustedProxiesCheck;
+use App\Vault\Health\VaultKeyCheck;
 use App\Vault\RequestAttributes;
 use App\Vault\Tokens\AdminIpList;
 use App\Vault\Tokens\TrustedProxyList;
@@ -26,6 +37,12 @@ use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
 use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
 use Laravel\Passkeys\Events\PasskeyDeleted;
 use Laravel\Passkeys\Events\PasskeyRegistered;
+use Spatie\Health\Checks\Checks\DatabaseCheck;
+use Spatie\Health\Checks\Checks\DebugModeCheck;
+use Spatie\Health\Checks\Checks\EnvironmentCheck;
+use Spatie\Health\Checks\Checks\ScheduleCheck;
+use Spatie\Health\Facades\Health;
+use Spatie\Health\Notifications\CheckFailedNotification;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -48,6 +65,48 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureRateLimiting();
         $this->configureAuditListeners();
+        $this->configureHealthChecks();
+    }
+
+    /**
+     * Register the health checks in the order of the security status page and set the notification channels. A
+     * channel is only used when its address or webhook is configured.
+     */
+    protected function configureHealthChecks(): void
+    {
+        Health::checks([
+            EnvironmentCheck::new()->expectEnvironment('production'),
+            DebugModeCheck::new()->expectedToBe(false),
+            DatabaseCheck::new(),
+            ScheduleCheck::new()->heartbeatMaxAgeInMinutes(2),
+            HttpsCheck::new(),
+            SodiumCheck::new(),
+            VaultKeyCheck::new(),
+            KeyVersionsCheck::new(),
+            EnvFilePermissionsCheck::new(),
+            SessionCheck::new(),
+            TrustedProxiesCheck::new(),
+            SecondFactorCheck::new(),
+            AuditChainCheck::new(),
+            AdminExistsCheck::new(),
+        ]);
+
+        $channels = [];
+
+        if (filled(config('vault.health.notify_mail'))) {
+            $channels[] = 'mail';
+            config(['health.notifications.mail.to' => config('vault.health.notify_mail')]);
+        }
+
+        if (filled(config('vault.health.notify_slack_webhook'))) {
+            $channels[] = SlackWebhookChannel::class;
+            config(['health.notifications.slack.webhook_url' => config('vault.health.notify_slack_webhook')]);
+        }
+
+        config([
+            'health.notifications.notifications' => [CheckFailedNotification::class => $channels],
+            'health.notifications.enabled' => $channels !== [],
+        ]);
     }
 
     /**
