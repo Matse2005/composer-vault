@@ -128,7 +128,7 @@ it('works without any credentials', function () {
 it('asks for confirmation in production and stops when declined', function () {
     Credential::factory()->create();
     $before = credentialRowSnapshot();
-    $this->app->detectEnvironment(fn () => 'production');
+    $this->app['env'] = 'production';
 
     $this->artisan('vault:rotate-key', ['--key' => vaultTestKey(2)])
         ->expectsConfirmation('Are you sure you want to run this command?', 'no')
@@ -139,7 +139,7 @@ it('asks for confirmation in production and stops when declined', function () {
 
 it('skips the confirmation in production with --force', function () {
     Credential::factory()->create();
-    $this->app->detectEnvironment(fn () => 'production');
+    $this->app['env'] = 'production';
 
     $this->artisan('vault:rotate-key', ['--key' => vaultTestKey(2), '--force' => true])->assertSuccessful();
 
