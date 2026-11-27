@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\AccessResult;
 use Database\Factories\AccessLogFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -21,9 +23,19 @@ use Illuminate\Support\Carbon;
 class AccessLog extends Model
 {
     /** @use HasFactory<AccessLogFactory> */
-    use HasFactory;
+    use HasFactory, MassPrunable;
 
     const UPDATED_AT = null;
+
+    /**
+     * Get the rows that are older than the retention period.
+     *
+     * @return Builder<static>
+     */
+    public function prunable(): Builder
+    {
+        return static::query()->where('created_at', '<', now()->subDays((int) config('vault.access_log_retention_days')));
+    }
 
     /**
      * Get the attributes that should be cast.
