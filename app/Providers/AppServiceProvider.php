@@ -65,6 +65,8 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureRateLimiting(): void
     {
+        RateLimiter::for('invitations', fn (Request $request): Limit => Limit::perMinute(10)->by((string) $request->ip()));
+
         RateLimiter::for('vault-api', function (Request $request): Limit {
             $token = $request->attributes->get(RequestAttributes::ACCESS_TOKEN);
 
