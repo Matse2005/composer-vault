@@ -2,8 +2,10 @@
 
 namespace App\Actions\Vault;
 
+use App\Enums\AuditAction;
 use App\Exceptions\Vault\HostConflictException;
 use App\Models\Credential;
+use App\Vault\Audit\AuditLogger;
 use App\Vault\HostConflictGuard;
 use App\Vault\HostName;
 use Illuminate\Support\Facades\DB;
@@ -11,10 +13,18 @@ use SensitiveParameter;
 
 class UpdateCredential
 {
-    public function __construct(private HostConflictGuard $hostConflictGuard) {}
+    /** The attributes of a credential that an update can change, besides the secret. */
+    private const AUDITED_ATTRIBUTES = ['name', 'type', 'host', 'username', 'notes'];
+
+    public function __construct(
+        private HostConflictGuard $hostConflictGuard,
+        private AuditLogger $auditLogger,
+    ) {}
 
     /**
      * Update a credential. The secret is replaced only when a non-empty new secret is given.
+     *
+     * One entry is audited for the update, and a second one when the secret was replaced.
      *
      * @param  array{name?: string, type?: mixed, host?: string, username?: string|null, notes?: string|null}  $attributes
      *
@@ -29,11 +39,25 @@ class UpdateCredential
 
             $credential->fill($attributes);
 
-            if ($newSecret !== null && $newSecret !== '') {
+            $changes = [];
+
+            foreach (array_intersect(array_keys($credential->getDirty()), self::AUDITED_ATTRIBUTES) as $attribute) {
+                $changes[$attribute] = ['old' => $credential->getOriginal($attribute), 'new' => $credential->getAttribute($attribute)];
+            }
+
+            $secretChanged = $newSecret !== null && $newSecret !== '';
+
+            if ($secretChanged) {
                 $credential->setSecret($newSecret);
             }
 
             $credential->save();
+
+            $this->auditLogger->record(AuditAction::CredentialUpdated, $credential, $changes);
+
+            if ($secretChanged) {
+                $this->auditLogger->record(AuditAction::CredentialSecretChanged, $credential, ['secret' => 'changed']);
+            }
 
             return $credential;
         });

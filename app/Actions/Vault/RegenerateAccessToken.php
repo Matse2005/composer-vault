@@ -2,15 +2,20 @@
 
 namespace App\Actions\Vault;
 
+use App\Enums\AuditAction;
 use App\Exceptions\Vault\TokenIssuingFailedException;
 use App\Models\AccessToken;
+use App\Vault\Audit\AuditLogger;
 use App\Vault\Tokens\IssuedToken;
 use App\Vault\Tokens\TokenIssuer;
 use Illuminate\Support\Facades\DB;
 
 class RegenerateAccessToken
 {
-    public function __construct(private TokenIssuer $tokenIssuer) {}
+    public function __construct(
+        private TokenIssuer $tokenIssuer,
+        private AuditLogger $auditLogger,
+    ) {}
 
     /**
      * Replace the token value in place. The old value stops working at once. Name, projects, IP allowlist and
@@ -21,9 +26,18 @@ class RegenerateAccessToken
     public function handle(AccessToken $token): IssuedToken
     {
         return DB::transaction(function () use ($token): IssuedToken {
+            $oldPrefix = $token->token_prefix;
+
             $token->forceFill(['last_used_at' => null, 'last_used_ip' => null]);
 
-            return $this->tokenIssuer->issue($token);
+            $issued = $this->tokenIssuer->issue($token);
+
+            $this->auditLogger->record(AuditAction::TokenRegenerated, $token, [
+                'old_prefix' => $oldPrefix,
+                'new_prefix' => $token->token_prefix,
+            ]);
+
+            return $issued;
         });
     }
 }

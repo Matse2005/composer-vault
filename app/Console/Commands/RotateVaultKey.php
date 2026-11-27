@@ -2,9 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\AuditAction;
 use App\Exceptions\Vault\DecryptionFailedException;
 use App\Exceptions\Vault\InvalidVaultKeyException;
 use App\Models\Credential;
+use App\Vault\Audit\AuditLogger;
 use App\Vault\Crypto\KeyProvider;
 use App\Vault\Crypto\MasterKey;
 use App\Vault\Crypto\RotatingKeyProvider;
@@ -25,11 +27,10 @@ class RotateVaultKey extends Command
      * Execute the console command.
      *
      * Every data key is re-encrypted in memory first. Rows are only written, in one transaction, when all of
-     * them succeeded, so a corrupted row leaves the database untouched. Secret ciphertexts never change.
-     *
-     * @todo phase-4 Write an audit entry (AuditAction::KeyRotated) once the audit log exists.
+     * them succeeded, so a corrupted row leaves the database untouched. Secret ciphertexts never change. The
+     * rotation is audited in the same transaction.
      */
-    public function handle(KeyProvider $keyProvider): int
+    public function handle(KeyProvider $keyProvider, AuditLogger $auditLogger): int
     {
         if (! $this->confirmToProceed()) {
             return self::FAILURE;
@@ -53,7 +54,7 @@ class RotateVaultKey extends Command
         $failedIds = [];
         $rotated = 0;
 
-        DB::transaction(function () use ($cipher, &$failedIds, &$rotated): void {
+        DB::transaction(function () use ($cipher, $auditLogger, $current, $newKey, &$failedIds, &$rotated): void {
             $rewrapped = [];
 
             foreach (Credential::query()->lockForUpdate()->get() as $credential) {
@@ -76,6 +77,12 @@ class RotateVaultKey extends Command
             }
 
             $rotated = count($rewrapped);
+
+            $auditLogger->record(AuditAction::KeyRotated, null, [
+                'old_version' => $current->version,
+                'new_version' => $newKey->version,
+                'credential_count' => $rotated,
+            ]);
         });
 
         if ($failedIds !== []) {

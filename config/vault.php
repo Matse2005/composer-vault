@@ -72,6 +72,35 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Admin IP Allowlist
+    |--------------------------------------------------------------------------
+    |
+    | Comma separated IP addresses or CIDR ranges that may reach the admin
+    | interface. Empty means every address may. Behind a reverse proxy,
+    | TRUSTED_PROXIES has to be set as well, or every request appears to come
+    | from the proxy.
+    |
+    */
+
+    'admin' => [
+        'allowed_ips' => env('VAULT_ADMIN_ALLOWED_IPS', ''),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Invitations
+    |--------------------------------------------------------------------------
+    |
+    | The number of hours an invitation link for a new admin stays valid.
+    |
+    */
+
+    'invitations' => [
+        'expire_hours' => (int) env('VAULT_INVITATION_EXPIRE_HOURS', 48),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Access Log Retention
     |--------------------------------------------------------------------------
     |

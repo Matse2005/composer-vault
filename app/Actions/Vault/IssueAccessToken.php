@@ -2,9 +2,11 @@
 
 namespace App\Actions\Vault;
 
+use App\Enums\AuditAction;
 use App\Exceptions\Vault\TokenIssuingFailedException;
 use App\Models\AccessToken;
 use App\Models\User;
+use App\Vault\Audit\AuditLogger;
 use App\Vault\Tokens\IpAllowlist;
 use App\Vault\Tokens\IssuedToken;
 use App\Vault\Tokens\TokenIssuer;
@@ -14,7 +16,10 @@ use InvalidArgumentException;
 
 class IssueAccessToken
 {
-    public function __construct(private TokenIssuer $tokenIssuer) {}
+    public function __construct(
+        private TokenIssuer $tokenIssuer,
+        private AuditLogger $auditLogger,
+    ) {}
 
     /**
      * Issue an access token for the given projects. The plain token is only in the returned value.
@@ -40,6 +45,14 @@ class IssueAccessToken
             $issued = $this->tokenIssuer->issue($token);
 
             $token->projects()->sync($projectIds);
+
+            $this->auditLogger->record(AuditAction::TokenIssued, $token, [
+                'name' => $token->name,
+                'token_prefix' => $token->token_prefix,
+                'project_ids' => array_values($projectIds),
+                'allowed_ips' => $allowedIps,
+                'expires_at' => $expiresAt,
+            ], $creator);
 
             return $issued;
         });
