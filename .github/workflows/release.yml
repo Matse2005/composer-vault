@@ -1,0 +1,92 @@
+name: release
+
+# Publishes a release when a version tag is pushed: the tag must match the VERSION file, the full test workflow must
+# pass, and the archive gets a checksum and a build provenance attestation.
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    name: check version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check that the tag matches the VERSION file
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [ "v${version}" != "${TAG}" ]; then
+            echo "The tag ${TAG} does not match the VERSION file (${version})." >&2
+            exit 1
+          fi
+
+  tests:
+    name: tests
+    needs: check-version
+    uses: ./.github/workflows/tests.yml
+
+  release:
+    name: release
+    needs: tests
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the archive and the checksum
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          git archive --format=tar.gz --prefix="composer-vault-${version}/" -o "composer-vault-${version}.tar.gz" "${TAG}"
+          sha256sum "composer-vault-${version}.tar.gz" > "composer-vault-${version}.tar.gz.sha256"
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+
+      - name: Extract the changelog section
+        run: |
+          awk -v version="${VERSION}" '
+            $0 ~ "^## \[" version "\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "CHANGELOG.md has no section for ${VERSION}." >&2
+            exit 1
+          fi
+
+      - name: Attest the build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: composer-vault-${{ env.VERSION }}.tar.gz
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          prerelease=""
+          case "${VERSION}" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "${TAG}" ${prerelease} \
+            --title "Composer Vault ${VERSION}" \
+            --notes-file release-notes.md \
+            "composer-vault-${VERSION}.tar.gz" \
+            "composer-vault-${VERSION}.tar.gz.sha256"
