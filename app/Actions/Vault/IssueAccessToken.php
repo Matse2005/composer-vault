@@ -32,7 +32,7 @@ class IssueAccessToken
      */
     public function handle(string $name, array $projectIds, ?array $allowedIps, ?CarbonImmutable $expiresAt, ?User $creator): IssuedToken
     {
-        $allowedIps = $this->validatedAllowlist($allowedIps);
+        $allowedIps = IpAllowlist::normalizeList($allowedIps);
 
         return DB::transaction(function () use ($name, $projectIds, $allowedIps, $expiresAt, $creator): IssuedToken {
             $token = (new AccessToken)->forceFill([
@@ -56,26 +56,5 @@ class IssueAccessToken
 
             return $issued;
         });
-    }
-
-    /**
-     * @param  array<int, string>|null  $allowedIps
-     * @return array<int, string>|null
-     *
-     * @throws InvalidArgumentException
-     */
-    private function validatedAllowlist(?array $allowedIps): ?array
-    {
-        if ($allowedIps === null || $allowedIps === []) {
-            return null;
-        }
-
-        foreach ($allowedIps as $entry) {
-            if (! IpAllowlist::isValidEntry($entry)) {
-                throw new InvalidArgumentException('The IP allowlist contains an entry that is not an IP address or CIDR range.');
-            }
-        }
-
-        return array_values($allowedIps);
     }
 }
