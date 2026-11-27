@@ -63,7 +63,7 @@ it('keeps the admin pages behind the second factor', function () {
     $this->actingAs(User::factory()->create());
 
     // Each ticket adds the routes of its own pages to this list.
-    foreach (['dashboard', 'projects.index', 'projects.create', 'credentials.index', 'credentials.create', 'tokens.index', 'tokens.create', 'logs.access', 'logs.audit'] as $name) {
+    foreach (['dashboard', 'projects.index', 'projects.create', 'credentials.index', 'credentials.create', 'tokens.index', 'tokens.create', 'logs.access', 'logs.audit', 'admins.index'] as $name) {
         $this->get(route($name))->assertRedirect(route('security.edit'));
     }
 });

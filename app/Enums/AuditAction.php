@@ -21,6 +21,7 @@ enum AuditAction: string
     case InvitationRevoked = 'invitation_revoked';
     case AdminJoined = 'admin_joined';
     case AdminRemoved = 'admin_removed';
+    case AdminDeactivated = 'admin_deactivated';
     case AdminLoggedIn = 'admin_logged_in';
     case TwoFactorEnabled = 'two_factor_enabled';
     case TwoFactorDisabled = 'two_factor_disabled';
