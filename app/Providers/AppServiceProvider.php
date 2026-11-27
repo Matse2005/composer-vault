@@ -9,6 +9,7 @@ use App\Vault\Audit\AuditAuthenticationEvents;
 use App\Vault\Crypto\EnvKeyProvider;
 use App\Vault\Crypto\KeyProvider;
 use App\Vault\RequestAttributes;
+use App\Vault\Tokens\AdminIpList;
 use App\Vault\Tokens\TrustedProxyList;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
@@ -42,6 +43,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         TrustedProxyList::parse(config('vault.trusted_proxies'));
+        AdminIpList::parse(config('vault.admin.allowed_ips'));
 
         $this->configureDefaults();
         $this->configureRateLimiting();

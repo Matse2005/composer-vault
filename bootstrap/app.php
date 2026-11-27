@@ -5,6 +5,7 @@ use App\Http\Middleware\AuthenticateAccessToken;
 use App\Http\Middleware\BlockExcessiveFailures;
 use App\Http\Middleware\EnsureSecondFactor;
 use App\Http\Middleware\RecordVaultAccess;
+use App\Http\Middleware\RestrictAdminIps;
 use App\Http\Middleware\SetNoStoreHeaders;
 use App\Http\Middleware\TrustVaultProxies;
 use Illuminate\Foundation\Application;
@@ -25,6 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->replace(TrustProxies::class, TrustVaultProxies::class);
 
         $middleware->alias(['second-factor' => EnsureSecondFactor::class]);
+
+        // First in the web group, so a blocked address never starts a session or reaches the application.
+        $middleware->prependToGroup('web', RestrictAdminIps::class);
 
         $middleware->group('vault-api', [
             SetNoStoreHeaders::class,
