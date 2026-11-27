@@ -18,6 +18,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Version
+    |--------------------------------------------------------------------------
+    |
+    | The version of Composer Vault, read from the VERSION file at the root of
+    | the repository. It is shown in the sidebar and by the vault:install and
+    | vault:doctor commands.
+    |
+    */
+
+    'version' => is_file(base_path('VERSION')) ? trim((string) file_get_contents(base_path('VERSION'))) : 'unknown',
+
+    /*
+    |--------------------------------------------------------------------------
     | Vault Key Version
     |--------------------------------------------------------------------------
     |
