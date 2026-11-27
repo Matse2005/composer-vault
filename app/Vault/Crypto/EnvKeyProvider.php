@@ -5,7 +5,6 @@ namespace App\Vault\Crypto;
 use App\Exceptions\Vault\InvalidVaultKeyException;
 use App\Exceptions\Vault\UnknownKeyVersionException;
 use Illuminate\Contracts\Config\Repository;
-use SensitiveParameter;
 
 /**
  * Reads the master keys from the vault configuration (VAULT_KEY and VAULT_PREVIOUS_KEYS).
@@ -15,8 +14,6 @@ use SensitiveParameter;
  */
 class EnvKeyProvider implements KeyProvider
 {
-    private const PREFIX = 'base64:';
-
     public function __construct(private Repository $config) {}
 
     public function current(): MasterKey
@@ -27,7 +24,7 @@ class EnvKeyProvider implements KeyProvider
             throw new InvalidVaultKeyException('VAULT_KEY_VERSION must be a positive integer.');
         }
 
-        return $this->parseKey($version, $this->config->get('vault.key'), 'VAULT_KEY');
+        return MasterKey::fromEncoded($version, $this->config->get('vault.key'), 'VAULT_KEY');
     }
 
     public function forVersion(int $version): MasterKey
@@ -67,37 +64,9 @@ class EnvKeyProvider implements KeyProvider
                 throw new InvalidVaultKeyException("{$label} repeats a key version.");
             }
 
-            $keys[(int) $version] = $this->parseKey((int) $version, $key, $label);
+            $keys[(int) $version] = MasterKey::fromEncoded((int) $version, $key, $label);
         }
 
         return $keys;
-    }
-
-    /**
-     * Decode a key in the "base64:..." format.
-     *
-     * @throws InvalidVaultKeyException
-     */
-    private function parseKey(int $version, #[SensitiveParameter] mixed $value, string $label): MasterKey
-    {
-        if (! is_string($value) || $value === '') {
-            throw new InvalidVaultKeyException("{$label} is missing.");
-        }
-
-        if (! str_starts_with($value, self::PREFIX)) {
-            throw new InvalidVaultKeyException("{$label} must start with \"".self::PREFIX.'".');
-        }
-
-        $bytes = base64_decode(substr($value, strlen(self::PREFIX)), true);
-
-        if ($bytes === false) {
-            throw new InvalidVaultKeyException("{$label} is not valid base64.");
-        }
-
-        if (strlen($bytes) !== MasterKey::KEY_BYTES) {
-            throw new InvalidVaultKeyException("{$label} must decode to exactly ".MasterKey::KEY_BYTES.' bytes.');
-        }
-
-        return new MasterKey($version, $bytes);
     }
 }

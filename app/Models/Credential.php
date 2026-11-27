@@ -94,11 +94,19 @@ class Credential extends Model
      */
     public function revealSecret(): string
     {
-        return app(SecretCipher::class)->decrypt((string) $this->getKey(), new EncryptedSecret(
+        return app(SecretCipher::class)->decrypt((string) $this->getKey(), $this->encryptedSecret());
+    }
+
+    /**
+     * Get the stored ciphertexts and key version as one value.
+     */
+    public function encryptedSecret(): EncryptedSecret
+    {
+        return new EncryptedSecret(
             secretCiphertext: (string) $this->getAttribute('secret_ciphertext'),
             dataKeyCiphertext: (string) $this->getAttribute('data_key_ciphertext'),
             keyVersion: (int) $this->getAttribute('key_version'),
-        ));
+        );
     }
 
     /**
