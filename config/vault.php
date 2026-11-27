@@ -111,4 +111,20 @@ return [
 
     'access_log_retention_days' => (int) env('VAULT_ACCESS_LOG_RETENTION_DAYS', 90),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Health Notifications
+    |--------------------------------------------------------------------------
+    |
+    | Where a failing health check is reported. Each channel is only used when
+    | it is set: an email address for mail, an incoming webhook url for Slack.
+    | The messages hold the check names and summaries, never a secret.
+    |
+    */
+
+    'health' => [
+        'notify_mail' => env('VAULT_HEALTH_NOTIFY_MAIL'),
+        'notify_slack_webhook' => env('VAULT_HEALTH_NOTIFY_SLACK_WEBHOOK'),
+    ],
+
 ];
