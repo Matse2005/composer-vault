@@ -46,3 +46,32 @@ function assertApiError(TestResponse $response, int $status, string $code): void
         ->and($response->headers->get('Cache-Control'))->toContain('no-store')
         ->and($response->headers->get('Pragma'))->toBe('no-cache');
 }
+
+/**
+ * Assert that a decoded composer-auth body has the shapes of docs/api.md: only the four Composer auth keys, each
+ * with at least one host. http-basic hosts hold exactly a username and a password, the other types a token string.
+ *
+ * @param  array<string, mixed>  $body
+ */
+function assertComposerAuthShape(array $body): void
+{
+    expect(array_diff(array_keys($body), ['http-basic', 'bearer', 'github-oauth', 'gitlab-token']))->toBe([]);
+
+    foreach ($body as $type => $hosts) {
+        expect($hosts)->toBeArray()->not->toBeEmpty()
+            ->and(array_is_list($hosts))->toBeFalse();
+
+        foreach ($hosts as $host => $entry) {
+            expect((string) $host)->toMatch('/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/');
+
+            if ($type === 'http-basic') {
+                expect($entry)->toBeArray()
+                    ->and(array_keys($entry))->toBe(['username', 'password'])
+                    ->and($entry['username'])->toBeString()
+                    ->and($entry['password'])->toBeString();
+            } else {
+                expect($entry)->toBeString()->not->toBeEmpty();
+            }
+        }
+    }
+}
