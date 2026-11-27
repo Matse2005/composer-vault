@@ -3,8 +3,10 @@
 namespace Database\Factories;
 
 use App\Models\AccessToken;
+use App\Vault\Tokens\TokenIssuer;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
+use LogicException;
 
 /**
  * @extends Factory<AccessToken>
@@ -12,10 +14,17 @@ use Illuminate\Support\Str;
 class AccessTokenFactory extends Factory
 {
     /**
+     * Plain tokens of factory tokens built with withPlainToken(), by token prefix. For tests only.
+     *
+     * @var array<string, string>
+     */
+    private static array $plainTokens = [];
+
+    /**
      * Define the model's default state.
      *
-     * The hash belongs to a random string, so the factory token cannot be used to authenticate until phase 2
-     * adds a helper that returns a usable plain token.
+     * The default hash belongs to a random string, so such a token cannot authenticate. Use withPlainToken()
+     * for a token that can.
      *
      * @return array<string, mixed>
      */
@@ -23,7 +32,7 @@ class AccessTokenFactory extends Factory
     {
         return [
             'name' => fake()->unique()->slug(2),
-            'token_prefix' => 'cv_'.Str::random(5),
+            'token_prefix' => Str::random(8),
             'token_hash' => hash('sha256', Str::random(40)),
             'allowed_ips' => null,
             'expires_at' => null,
@@ -32,6 +41,31 @@ class AccessTokenFactory extends Factory
             'last_used_ip' => null,
             'created_by' => null,
         ];
+    }
+
+    /**
+     * Give the token a real plain token, readable with plainTokenFor(). For tests only.
+     */
+    public function withPlainToken(): static
+    {
+        return $this->state(function (): array {
+            $plainToken = app(TokenIssuer::class)->generatePlainToken();
+            self::$plainTokens[TokenIssuer::prefix($plainToken)] = $plainToken;
+
+            return [
+                'token_prefix' => TokenIssuer::prefix($plainToken),
+                'token_hash' => TokenIssuer::hash($plainToken),
+            ];
+        });
+    }
+
+    /**
+     * Get the plain token of a token that was built with withPlainToken(). For tests only.
+     */
+    public static function plainTokenFor(AccessToken $token): string
+    {
+        return self::$plainTokens[$token->token_prefix]
+            ?? throw new LogicException('This token was not built with withPlainToken().');
     }
 
     /**

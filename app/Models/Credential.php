@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\Enums\CredentialType;
+use App\Exceptions\Vault\DecryptionFailedException;
+use App\Vault\Crypto\EncryptedSecret;
+use App\Vault\Crypto\SecretCipher;
 use App\Vault\HostName;
 use Database\Factories\CredentialFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -13,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
+use SensitiveParameter;
 
 /**
  * @property string $id
@@ -64,5 +68,54 @@ class Credential extends Model
     public function projects(): BelongsToMany
     {
         return $this->belongsToMany(Project::class);
+    }
+
+    /**
+     * Encrypt a secret into the crypto columns. Does not save the model.
+     *
+     * The ID is generated first because it is bound into the ciphertext as associated data.
+     */
+    public function setSecret(#[SensitiveParameter] string $plaintext): void
+    {
+        $this->{$this->getKeyName()} ??= $this->newUniqueId();
+
+        $encrypted = app(SecretCipher::class)->encrypt((string) $this->getKey(), $plaintext);
+
+        $this->setAttribute('secret_ciphertext', $encrypted->secretCiphertext);
+        $this->setAttribute('data_key_ciphertext', $encrypted->dataKeyCiphertext);
+        $this->setAttribute('key_version', $encrypted->keyVersion);
+        $this->setAttribute('secret_changed_at', now());
+    }
+
+    /**
+     * Decrypt the secret. Only the API response builder calls this.
+     *
+     * @throws DecryptionFailedException
+     */
+    public function revealSecret(): string
+    {
+        return app(SecretCipher::class)->decrypt((string) $this->getKey(), $this->encryptedSecret());
+    }
+
+    /**
+     * Get the stored ciphertexts and key version as one value.
+     */
+    public function encryptedSecret(): EncryptedSecret
+    {
+        return new EncryptedSecret(
+            secretCiphertext: (string) $this->getAttribute('secret_ciphertext'),
+            dataKeyCiphertext: (string) $this->getAttribute('data_key_ciphertext'),
+            keyVersion: (int) $this->getAttribute('key_version'),
+        );
+    }
+
+    /**
+     * Show only the attributes that are visible in arrays, so dumps never contain the ciphertext.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return $this->attributesToArray();
     }
 }

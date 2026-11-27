@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\CredentialType;
 use App\Models\Credential;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Credential>
@@ -13,8 +14,6 @@ class CredentialFactory extends Factory
 {
     /**
      * Define the model's default state.
-     *
-     * The crypto columns hold placeholders until the secret cipher exists in phase 2.
      *
      * @return array<string, mixed>
      */
@@ -25,12 +24,32 @@ class CredentialFactory extends Factory
             'type' => CredentialType::HttpBasic,
             'host' => fake()->unique()->domainName(),
             'username' => fake()->userName(),
-            'secret_ciphertext' => 'placeholder-secret-ciphertext',
-            'data_key_ciphertext' => 'placeholder-data-key-ciphertext',
-            'key_version' => 1,
-            'secret_changed_at' => now(),
             'notes' => null,
         ];
+    }
+
+    /**
+     * Encrypt a secret with the vault cipher after making the model.
+     *
+     * The secret travels as a temporary "secret" attribute from the state to this callback, which removes it
+     * again, so it is never stored.
+     */
+    public function configure(): static
+    {
+        return $this->afterMaking(function (Credential $credential): void {
+            $secret = $credential->getAttributes()['secret'] ?? null;
+            $credential->offsetUnset('secret');
+
+            $credential->setSecret(is_string($secret) ? $secret : Str::random(32));
+        });
+    }
+
+    /**
+     * Use a specific secret instead of a random one.
+     */
+    public function withSecret(string $secret): static
+    {
+        return $this->state(['secret' => $secret]);
     }
 
     /**
