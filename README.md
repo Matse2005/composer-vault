@@ -69,6 +69,15 @@ Back up the database and `VAULT_KEY` separately. The database holds only ciphert
 
 Pull the new version, run `composer install --no-dev --optimize-autoloader`, `npm ci && npm run build` and `php artisan migrate --force`, then `php artisan vault:doctor`. The deploy scripts in the guides do exactly this.
 
+## Verifying a release
+
+Every release archive has a SHA-256 checksum file and a build provenance attestation. After downloading `composer-vault-<version>.tar.gz` and its `.sha256` file from the release page, check both:
+
+```bash
+sha256sum --check composer-vault-<version>.tar.gz.sha256
+gh attestation verify composer-vault-<version>.tar.gz --repo Matse2005/composer-vault
+```
+
 ## Key rotation
 
 Run `php artisan vault:rotate-key`. It re-encrypts the data key of every credential with a new master key in one transaction and prints the new environment values: set `VAULT_KEY` and `VAULT_KEY_VERSION` to the new values and add the old key to `VAULT_PREVIOUS_KEYS` as `<version>:<key>`. Keep the old entry until `vault:doctor` reports that no credential uses it any more, then remove it.

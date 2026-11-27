@@ -31,6 +31,7 @@ class VaultDoctor extends Command
                 ], $rows),
             ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         } else {
+            $this->line('Composer Vault '.config('vault.version'));
             $this->table(
                 ['Status', 'Check', 'Summary', 'Fix'],
                 array_map(fn (array $row): array => [$row['status'], $row['label'], $row['summary'], $row['fix']], $rows),

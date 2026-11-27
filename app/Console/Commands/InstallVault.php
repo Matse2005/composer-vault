@@ -9,7 +9,6 @@ use App\Exceptions\Vault\InvitationNotAllowedException;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Crypto\MasterKey;
-use Composer\InstalledVersions;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -194,7 +193,7 @@ class InstallVault extends Command
 
     private function appVersion(): string
     {
-        return InstalledVersions::getRootPackage()['pretty_version'];
+        return (string) config('vault.version');
     }
 
     private function printSummary(): void
@@ -202,6 +201,8 @@ class InstallVault extends Command
         $warning = 'Back up VAULT_KEY separately from your database. Without it, every stored credential is lost.';
         $border = '+'.str_repeat('-', strlen($warning) + 2).'+';
 
+        $this->newLine();
+        $this->line('Composer Vault '.config('vault.version').' is installed.');
         $this->newLine();
         $this->line($border);
         $this->line('| '.$warning.' |');
