@@ -193,8 +193,7 @@ new class extends Component {
                 <div class="space-y-6">
                     <div
                         class="flex flex-col items-center space-y-3 justify-center"
-                        x-data
-                        x-init="$nextTick(() => $el.querySelector('input')?.focus())"
+                        x-data="focusFirstInput"
                     >
                         <flux:otp
                             name="code"
@@ -270,18 +269,8 @@ new class extends Component {
 
                     <div
                         class="flex items-center space-x-2"
-                        x-data="{
-                            copied: false,
-                            async copy() {
-                                try {
-                                    await navigator.clipboard.writeText('{{ $manualSetupKey }}');
-                                    this.copied = true;
-                                    setTimeout(() => this.copied = false, 1500);
-                                } catch (e) {
-                                    console.warn('Could not copy to clipboard');
-                                }
-                            }
-                        }"
+                        x-data="copyToClipboard"
+                        data-text="{{ $manualSetupKey }}"
                     >
                         <div class="flex items-stretch w-full border rounded-xl dark:border-stone-700">
                             @empty($manualSetupKey)

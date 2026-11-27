@@ -17,6 +17,7 @@ class SetNoStoreHeaders
 
         $response->headers->set('Cache-Control', 'no-store');
         $response->headers->set('Pragma', 'no-cache');
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
 
         return $response;
     }

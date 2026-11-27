@@ -27,6 +27,7 @@ final class ApiError
         return response()->json(['error' => $code], $status, $headers + [
             'Cache-Control' => 'no-store',
             'Pragma' => 'no-cache',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 }
