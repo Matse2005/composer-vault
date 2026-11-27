@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Actions\Fortify\ResetUserPassword;
+use App\Http\Middleware\EnsureSecondFactor;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -40,6 +41,7 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Livewire::addPersistentMiddleware([
             RequirePassword::class,
+            EnsureSecondFactor::class,
         ]);
     }
 

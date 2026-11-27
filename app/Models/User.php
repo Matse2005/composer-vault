@@ -49,6 +49,15 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Determine whether the user has a usable second factor: a confirmed authenticator app or at least one passkey.
+     * An authenticator that was set up but not confirmed does not count.
+     */
+    public function hasSecondFactor(): bool
+    {
+        return $this->two_factor_confirmed_at !== null || $this->hasPasskeysEnabled();
+    }
+
+    /**
      * Get the user's initials
      */
     public function initials(): string
