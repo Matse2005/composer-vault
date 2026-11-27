@@ -31,4 +31,12 @@ class Project extends Model
     {
         return $this->belongsToMany(Credential::class);
     }
+
+    /**
+     * @return BelongsToMany<AccessToken, $this>
+     */
+    public function accessTokens(): BelongsToMany
+    {
+        return $this->belongsToMany(AccessToken::class);
+    }
 }
