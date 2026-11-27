@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Fortify;
+use Laravel\Passkeys\Contracts\PasskeyUser;
+use Laravel\Passkeys\Passkey;
+use Laravel\Passkeys\Passkeys;
 use Livewire\Livewire;
 
 class FortifyServiceProvider extends ServiceProvider
@@ -55,14 +58,25 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
 
         Fortify::authenticateUsing(function (Request $request): ?User {
+            // A remember me cookie would log in again without the second factor and outlive the session lifetime.
+            $request->merge(['remember' => false]);
+
             $user = User::query()->where(Fortify::username(), $request->input(Fortify::username()))->first();
 
             if ($user === null || $user->isDeactivated() || ! Hash::check((string) $request->input('password'), $user->password)) {
                 return null;
             }
 
+            // The password login only challenges for an authenticator app. An admin whose only second factor is a
+            // passkey must sign in with the passkey, or the password alone would give full access.
+            if ($user->two_factor_confirmed_at === null && $user->hasPasskeysEnabled()) {
+                return null;
+            }
+
             return $user;
         });
+
+        Passkeys::authorizeLoginUsing(fn (Request $request, PasskeyUser $user, Passkey $passkey): bool => ! ($user instanceof User && $user->isDeactivated()));
     }
 
     /**

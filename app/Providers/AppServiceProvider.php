@@ -10,6 +10,7 @@ use App\Vault\Crypto\EnvKeyProvider;
 use App\Vault\Crypto\KeyProvider;
 use App\Vault\Health\AdminExistsCheck;
 use App\Vault\Health\AuditChainCheck;
+use App\Vault\Health\CspEnforcedCheck;
 use App\Vault\Health\EnvFilePermissionsCheck;
 use App\Vault\Health\HttpsCheck;
 use App\Vault\Health\KeyVersionsCheck;
@@ -85,6 +86,7 @@ class AppServiceProvider extends ServiceProvider
             KeyVersionsCheck::new(),
             EnvFilePermissionsCheck::new(),
             SessionCheck::new(),
+            CspEnforcedCheck::new(),
             TrustedProxiesCheck::new(),
             SecondFactorCheck::new(),
             AuditChainCheck::new(),
