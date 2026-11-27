@@ -3,6 +3,7 @@
 use App\Exceptions\ApiExceptionRenderer;
 use App\Http\Middleware\AuthenticateAccessToken;
 use App\Http\Middleware\BlockExcessiveFailures;
+use App\Http\Middleware\EnsureSecondFactor;
 use App\Http\Middleware\RecordVaultAccess;
 use App\Http\Middleware\SetNoStoreHeaders;
 use App\Http\Middleware\TrustVaultProxies;
@@ -22,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->replace(TrustProxies::class, TrustVaultProxies::class);
+
+        $middleware->alias(['second-factor' => EnsureSecondFactor::class]);
 
         $middleware->group('vault-api', [
             SetNoStoreHeaders::class,

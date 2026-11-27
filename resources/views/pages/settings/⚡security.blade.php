@@ -187,6 +187,12 @@ new #[Title('Security settings')] class extends Component {
 
     <flux:heading level="2" class="sr-only">{{ __('Security settings') }}</flux:heading>
 
+    @unless (auth()->user()->hasSecondFactor())
+        <flux:callout variant="warning" icon="exclamation-triangle" class="mb-6" data-test="second-factor-required">
+            <flux:callout.heading>{{ __('Set up two-factor authentication or a passkey to continue.') }}</flux:callout.heading>
+        </flux:callout>
+    @endunless
+
     <x-pages::settings.layout :heading="__('Update password')" :subheading="__('Ensure your account is using a long, random password to stay secure')">
         <form method="POST" wire:submit="updatePassword" class="mt-6 space-y-6">
             <flux:input
