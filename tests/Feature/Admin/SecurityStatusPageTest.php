@@ -71,6 +71,7 @@ it('refreshes stale results when the button runs again', function () {
 
     Health::clearChecks();
     Health::checks([statusCheck('alpha', 'ok', 'Alpha is repaired')]);
+    $this->travel(2)->seconds();
 
     $component->call('runChecks')->assertSee('Alpha is repaired')->assertDontSee('Alpha is broken');
 });
@@ -86,6 +87,7 @@ it('summarises the latest run on the dashboard', function () {
 
     Health::clearChecks();
     Health::checks([statusCheck('alpha', 'failed'), statusCheck('beta', 'warning'), statusCheck('gamma', 'ok')]);
+    $this->travel(2)->seconds();
     app(HealthRunner::class)->runFresh();
     $dashboard()->assertSee('2 problems, see Security status');
 });
