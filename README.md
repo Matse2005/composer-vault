@@ -59,7 +59,7 @@ The full interface, including the error responses, is in the [API contract](docs
 
 `php artisan vault:doctor` runs every health check now and prints a table (`--json` for machines, `--strict` to fail on warnings too). The same checks run every five minutes through the scheduler and are shown on the Security status page in the admin interface, with a button to run them again. They cover the environment, debug mode, the database, the scheduler heartbeat, https, sodium, the vault key, key versions, the `.env` permissions, the session cookie, trusted proxies, admins without a second factor, the audit log chain and the existence of an admin. Results are never exposed over HTTP; only logged in admins see them.
 
-To be told when a check fails, set `VAULT_HEALTH_NOTIFY_MAIL` to an email address, `VAULT_HEALTH_NOTIFY_SLACK_WEBHOOK` to a Slack incoming webhook, or both. A failing check is reported at most once an hour. The messages hold check names and summaries, never a secret.
+To be told when a check fails, set a mail address, a Slack incoming webhook or both on the Notifications page of the dashboard (an Owner does this). `VAULT_HEALTH_NOTIFY_MAIL` and `VAULT_HEALTH_NOTIFY_SLACK_WEBHOOK` override the dashboard values and lock those fields. A failing check is reported at most once an hour. The messages hold check names and summaries, never a secret.
 
 ## Backups
 
@@ -85,6 +85,16 @@ Run `php artisan vault:rotate-key`. It re-encrypts the data key of every credent
 ## Running behind a proxy or load balancer
 
 The vault trusts no proxy by default, so it sees the address of the proxy as the client address and the token IP allowlists would not work. Set `TRUSTED_PROXIES` to the comma separated IP addresses or CIDR ranges of your proxies. A wildcard is refused on purpose.
+
+## Company use
+
+A company can run the vault for its own teams with roles (Owner, Admin, Auditor), sign-in through its identity provider with OpenID Connect, and tools for its security and privacy officers: retention settings, personal data export and pseudonymisation, a security event stream for a SIEM, alerts, incident tools, access reviews and a compliance report. These settings are managed in the dashboard.
+
+- [Single sign-on](docs/compliance/sso.md)
+- [Personal data](docs/compliance/gdpr.md)
+- [Security controls](docs/compliance/nis2.md)
+
+The vault supports your own compliance work. It does not make a company compliant, and none of these documents is legal advice.
 
 ## Security
 

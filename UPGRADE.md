@@ -12,6 +12,10 @@ Composer Vault follows [Semantic Versioning](https://semver.org/). Breaking chan
 
 Read the [changelog](CHANGELOG.md) for the versions you skip.
 
+## Upgrading to 1.1.0
+
+Run the steps above. The migrations add roles: every admin that exists before the upgrade becomes an Owner, so nobody loses access. Review the roles on the Admins page afterwards and give people the role they need. New settings are managed in the dashboard; no new environment variable is required. The change of the health notification address to the dashboard keeps working with the existing environment variables.
+
 ## What each kind of release can contain
 
 - A patch release fixes bugs and changes nothing that you have to configure.
