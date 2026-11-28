@@ -37,7 +37,7 @@ it('revokes every token of one project and no other', function () {
     expect($count)->toBe(2)
         ->and($mine->every(fn ($token) => $token->fresh()->isRevoked()))->toBeTrue()
         ->and($theirs->fresh()->isRevoked())->toBeFalse()
-        ->and(AuditEntry::query()->where('event', 'tokens_revoked_in_bulk')->sole()->properties->toArray())->toBe(['count' => 2, 'scope' => 'project']);
+        ->and(AuditEntry::query()->where('event', 'tokens_revoked_in_bulk')->sole()->properties->toArray())->toEqual(['count' => 2, 'scope' => 'project']);
 });
 
 it('revokes every token', function () {

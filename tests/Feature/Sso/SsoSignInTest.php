@@ -177,7 +177,7 @@ it('resolves the highest role from the groups claim', function () {
 
     expect($user->fresh()->role->value)->toBe('admin');
     $entry = AuditEntry::query()->where('event', 'admin_role_changed')->sole();
-    expect($entry->properties->toArray())->toBe(['old_role' => 'owner', 'new_role' => 'admin', 'source' => 'sso'])
+    expect($entry->properties->toArray())->toEqual(['old_role' => 'owner', 'new_role' => 'admin', 'source' => 'sso'])
         ->and($entry->causer_id)->toBeNull();
 });
 

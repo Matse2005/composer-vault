@@ -51,7 +51,7 @@ it('audits the prune itself with the count and checkpoint', function () {
 
     $entry = AuditEntry::query()->where('event', 'audit_log_pruned')->sole();
 
-    expect($entry->properties->toArray())->toBe(['pruned_count' => 5, 'checkpoint_sequence' => 5])
+    expect($entry->properties->toArray())->toEqual(['pruned_count' => 5, 'checkpoint_sequence' => 5])
         ->and($entry->causer_id)->toBeNull()
         ->and(app(AuditChainVerifier::class)->verify())->toBeNull();
 });

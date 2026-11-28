@@ -66,7 +66,7 @@ it('changes a role and audits the old and new role', function () {
     $entry = AuditEntry::query()->where('event', 'admin_role_changed')->sole();
 
     expect($other->fresh()->role)->toBe(AdminRole::Auditor)
-        ->and($entry->properties->toArray())->toBe(['old_role' => 'admin', 'new_role' => 'auditor'])
+        ->and($entry->properties->toArray())->toEqual(['old_role' => 'admin', 'new_role' => 'auditor'])
         ->and($entry->causer_id)->toBe($owner->id);
 });
 
