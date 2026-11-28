@@ -11,6 +11,7 @@ use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\Ability;
 use App\Vault\Invitations\AdminInvitation;
 use App\Vault\Invitations\IssuedInvitation;
+use App\Vault\Settings\VaultSettings;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -65,7 +66,7 @@ class InviteAdmin
         $this->assertCanInvite($email);
 
         $plainToken = $this->generateToken();
-        $expireHours = (int) config('vault.invitations.expire_hours');
+        $expireHours = app(VaultSettings::class)->invitationExpireHours();
 
         $invitation = DB::transaction(function () use ($email, $role, $plainToken, $expireHours, $inviter): Invitation {
             $invitation = (new Invitation)->forceFill([

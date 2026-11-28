@@ -79,8 +79,8 @@ return [
     */
 
     'api' => [
-        'rate_limit_per_minute' => (int) env('VAULT_API_RATE_LIMIT', 60),
-        'failed_attempts_per_minute' => (int) env('VAULT_API_FAILED_ATTEMPTS', 10),
+        'rate_limit_per_minute' => env('VAULT_API_RATE_LIMIT'),
+        'failed_attempts_per_minute' => env('VAULT_API_FAILED_ATTEMPTS'),
     ],
 
     /*
@@ -111,7 +111,7 @@ return [
     */
 
     'invitations' => [
-        'expire_hours' => (int) env('VAULT_INVITATION_EXPIRE_HOURS', 48),
+        'expire_hours' => env('VAULT_INVITATION_EXPIRE_HOURS'),
     ],
 
     /*
@@ -168,6 +168,29 @@ return [
     */
 
     'security_log_channel' => env('VAULT_SECURITY_LOG_CHANNEL'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Environment Overrides of Laravel Settings
+    |--------------------------------------------------------------------------
+    |
+    | The raw values of Laravel's own variables that the dashboard can also
+    | manage. A value here wins over the dashboard and locks the field. They are
+    | read here, and not from the Laravel configuration, because the dashboard
+    | value is applied to that configuration at runtime.
+    |
+    */
+
+    'env' => [
+        'session_lifetime' => env('SESSION_LIFETIME'),
+        'mail_host' => env('MAIL_HOST'),
+        'mail_port' => env('MAIL_PORT'),
+        'mail_encryption' => env('MAIL_ENCRYPTION'),
+        'mail_username' => env('MAIL_USERNAME'),
+        'mail_password' => env('MAIL_PASSWORD'),
+        'mail_from_address' => env('MAIL_FROM_ADDRESS'),
+        'mail_from_name' => env('MAIL_FROM_NAME'),
+    ],
 
     'sso' => [
         'enabled' => env('VAULT_SSO_ENABLED'),
