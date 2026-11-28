@@ -10,6 +10,7 @@ use App\Actions\Vault\RevokeInvitation;
 use App\Enums\AdminRole;
 use App\Exceptions\Vault\BreakGlassNotAllowedException;
 use App\Exceptions\Vault\CannotDeactivateAdminException;
+use App\Exceptions\Vault\ChangeProposedException;
 use App\Exceptions\Vault\LastOwnerException;
 use App\Exceptions\Vault\PseudonymisationRefusedException;
 use App\Exceptions\Vault\RoleEscalationException;
@@ -146,6 +147,11 @@ new #[Title('Admins')] class extends Component {
 
         try {
             $changeAdminRole->handle(User::query()->findOrFail($userId), $newRole, auth()->user());
+        } catch (ChangeProposedException $exception) {
+            unset($this->activeAdmins);
+            Flux::toast($exception->getMessage());
+
+            return;
         } catch (LastOwnerException|RoleEscalationException $exception) {
             $this->addError('deactivate', $exception->getMessage());
 

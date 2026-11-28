@@ -32,6 +32,8 @@ new #[Title('Security')] class extends Component {
 
     public bool $breakGlassBypass = false;
 
+    public bool $approvalEnabled = false;
+
     /** The warning of the lockout guard that waits for the admin's confirmation. */
     public ?string $lockoutWarning = null;
 
@@ -44,6 +46,7 @@ new #[Title('Security')] class extends Component {
         $this->adminAllowedIps = (string) $settings->get('admin.allowed_ips');
         $this->securityLogChannel = (string) $settings->securityLogChannel();
         $this->breakGlassBypass = (bool) $settings->get('security.break_glass_bypasses_ip_allowlist');
+        $this->approvalEnabled = (bool) $settings->get('approval.enabled');
     }
 
     /**
@@ -85,8 +88,12 @@ new #[Title('Security')] class extends Component {
             }
         }
 
+        if (auth()->user()?->can('approval.manage')) {
+            $values['approval.enabled'] = $this->approvalEnabled;
+        }
+
         try {
-            $settings->update($values, auth()->user(), $confirmations);
+            $pending = $settings->update($values, auth()->user(), $confirmations);
         } catch (LockoutGuardException $exception) {
             $this->lockoutWarning = $exception->getMessage();
             Flux::modal('confirm-lockout')->show();
@@ -102,7 +109,7 @@ new #[Title('Security')] class extends Component {
             return;
         }
 
-        Flux::toast(__('Security settings saved.'));
+        Flux::toast($pending === [] ? __('Security settings saved.') : __('Saved. :count critical change(s) wait for the approval of another Owner.', ['count' => count($pending)]));
     }
 }; ?>
 
@@ -158,6 +165,19 @@ new #[Title('Security')] class extends Component {
             <x-setting-source setting="security.log_channel" />
             <flux:error name="securityLogChannel" />
         </div>
+
+        @can('approval.manage')
+            <div>
+                <flux:switch wire:model="approvalEnabled" :label="__('Require a second Owner to approve critical changes')" />
+                <x-setting-source setting="approval.enabled" />
+                <flux:text class="mt-1 text-xs">
+                    {{ __('Critical changes: single sign-on, retention, the admin IP allowlist, role permissions and giving the Owner role. They wait for another Owner for 24 hours. With one active Owner they apply directly.') }}
+                    @if (app(\App\Vault\Settings\ChangeApproval::class)->isOnWithOneOwner())
+                        {{ __('Approval is on, but there is only one active Owner, so changes apply directly now.') }}
+                    @endif
+                </flux:text>
+            </div>
+        @endcan
 
         <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
     </form>

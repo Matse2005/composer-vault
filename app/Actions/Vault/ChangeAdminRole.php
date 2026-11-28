@@ -4,6 +4,7 @@ namespace App\Actions\Vault;
 
 use App\Enums\AdminRole;
 use App\Enums\AuditAction;
+use App\Exceptions\Vault\ChangeProposedException;
 use App\Exceptions\Vault\LastOwnerException;
 use App\Exceptions\Vault\RoleEscalationException;
 use App\Models\Role;
@@ -13,6 +14,7 @@ use App\Vault\Authorization\Ability;
 use App\Vault\Authorization\OwnerGuard;
 use App\Vault\Authorization\RoleGuard;
 use App\Vault\Compliance\SecurityAlerts;
+use App\Vault\Settings\ChangeApproval;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -39,7 +41,9 @@ class ChangeAdminRole
             throw RoleEscalationException::ownRole();
         }
 
-        DB::transaction(function () use ($admin, $role, $actor): void {
+        $proposed = false;
+
+        DB::transaction(function () use ($admin, $role, $actor, &$proposed): void {
             $admin->refresh();
 
             if (RoleGuard::isRoleOf($admin, $role)) {
@@ -51,6 +55,14 @@ class ChangeAdminRole
             }
 
             RoleGuard::assertMayAssign($actor, $role);
+
+            if ($role->isOwner() && app(ChangeApproval::class)->isRequired()) {
+                app(ChangeApproval::class)->propose('owner', (string) $admin->getKey(), ['role' => $role->slug], $actor);
+
+                $proposed = true;
+
+                return;
+            }
 
             if (! $role->isOwner()) {
                 OwnerGuard::assertAnotherActiveOwnerExists($admin);
@@ -68,5 +80,9 @@ class ChangeAdminRole
                 DB::afterCommit(fn () => app(SecurityAlerts::class)->ownerChange($admin, 'Admin became an Owner', $actor));
             }
         });
+
+        if ($proposed) {
+            throw new ChangeProposedException;
+        }
     }
 }

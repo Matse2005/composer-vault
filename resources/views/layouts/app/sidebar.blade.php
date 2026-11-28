@@ -56,6 +56,11 @@
                         {{ __('Roles') }}
                     </flux:sidebar.item>
                     @endcan
+                    @can('approval.manage')
+                    <flux:sidebar.item icon="check-badge" :href="route('settings.approvals')" :current="request()->routeIs('settings.approvals')" wire:navigate>
+                        {{ __('Approvals') }}
+                    </flux:sidebar.item>
+                    @endcan
                     @can('settings.api')
                     <flux:sidebar.item icon="code-bracket" :href="route('settings.api')" :current="request()->routeIs('settings.api')" wire:navigate>
                         {{ __('API') }}

@@ -2,6 +2,7 @@
 
 use App\Actions\Vault\DeleteRole;
 use App\Actions\Vault\SaveRole;
+use App\Exceptions\Vault\ChangeProposedException;
 use App\Exceptions\Vault\RoleEscalationException;
 use App\Models\Role;
 use App\Vault\Authorization\Ability;
@@ -64,6 +65,10 @@ new #[Title('Roles')] class extends Component {
 
         try {
             $role = $saveRole->handle($this->selected, $this->name, $this->permissions, explode(',', $this->ssoGroups), auth()->user());
+        } catch (ChangeProposedException $exception) {
+            Flux::toast($exception->getMessage());
+
+            return;
         } catch (RoleEscalationException $exception) {
             $this->addError('permissions', $exception->getMessage());
 

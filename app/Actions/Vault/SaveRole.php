@@ -3,6 +3,7 @@
 namespace App\Actions\Vault;
 
 use App\Enums\AuditAction;
+use App\Exceptions\Vault\ChangeProposedException;
 use App\Exceptions\Vault\RoleEscalationException;
 use App\Models\Role;
 use App\Models\User;
@@ -10,6 +11,7 @@ use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\Ability;
 use App\Vault\Authorization\RoleGuard;
 use App\Vault\Authorization\RolePermissions;
+use App\Vault\Settings\ChangeApproval;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -42,7 +44,9 @@ class SaveRole
         $permissions = array_values(array_unique($permissions));
         $groups = array_values(array_unique(array_filter(array_map('trim', $ssoGroups), fn (string $group): bool => $group !== '')));
 
-        return DB::transaction(function () use ($role, $name, $permissions, $groups, $actor): Role {
+        $proposed = false;
+
+        $saved = DB::transaction(function () use ($role, $name, $permissions, $groups, $actor, &$proposed): Role {
             $creating = $role === null;
             $role = $creating ? (new Role)->forceFill(['is_system' => false]) : Role::query()->whereKey($role->getKey())->lockForUpdate()->firstOrFail();
 
@@ -63,6 +67,14 @@ class SaveRole
 
                 if ($missing !== []) {
                     throw RoleEscalationException::cannotGrant($missing);
+                }
+
+                if (! $creating && app(ChangeApproval::class)->isRequired()) {
+                    app(ChangeApproval::class)->propose('role', $role->id, ['name' => $name, 'permissions' => $permissions, 'sso_groups' => $groups], $actor);
+
+                    $proposed = true;
+
+                    return $role;
                 }
             }
 
@@ -89,6 +101,12 @@ class SaveRole
 
             return $role;
         });
+
+        if ($proposed) {
+            throw new ChangeProposedException;
+        }
+
+        return $saved;
     }
 
     private function uniqueSlug(string $name): string

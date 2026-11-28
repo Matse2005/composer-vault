@@ -316,13 +316,17 @@ class VaultSettings
      * A critical change that could lock people out or delete evidence is refused, or asks for a confirmation: pass the
      * confirmations as setting key to true, or to the word that was typed.
      *
+     * When change approval is on and a second Owner exists, critical settings are not applied: they are stored as
+     * pending changes and their keys are returned. The other values are applied.
+     *
      * @param  array<string, mixed>  $values
      * @param  array<string, mixed>  $confirmations
+     * @return list<string> the keys of the changes that now wait for approval
      *
      * @throws ValidationException
      * @throws LockoutGuardException
      */
-    public function update(array $values, User $actor, array $confirmations = []): void
+    public function update(array $values, User $actor, array $confirmations = []): array
     {
         $rules = self::rules();
         $unknown = array_diff(array_keys($values), array_keys($rules));
@@ -344,7 +348,48 @@ class VaultSettings
 
         app(LockoutGuard::class)->assert($normalised, $this->effectiveValues(array_keys($normalised)), $actor, $confirmations);
 
+        $pending = [];
+        $approval = app(ChangeApproval::class);
+
+        if ($approval->isRequired()) {
+            $current = $this->effectiveValues(array_keys($normalised));
+
+            foreach ($normalised as $key => $value) {
+                if (SettingsRegistry::get($key)->isCritical && $value !== $current[$key]) {
+                    $approval->propose('setting', $key, ['value' => $value], $actor);
+                    $pending[] = $key;
+                    unset($normalised[$key]);
+                }
+            }
+        }
+
         $this->write($normalised, $actor);
+
+        return $pending;
+    }
+
+    /**
+     * Apply a setting that a second Owner approved. The permission and the guards ran when it was proposed.
+     */
+    public function applyApproved(string $key, mixed $value, User $approver): void
+    {
+        $this->write([$key => $value], $approver);
+    }
+
+    /**
+     * Store a secret that a second Owner approved. The ciphertext was made, bound to its setting, when it was proposed.
+     *
+     * @param  array<string, mixed>  $stored
+     */
+    public function applyApprovedSecret(string $key, array $stored, User $approver): void
+    {
+        DB::transaction(function () use ($key, $stored, $approver): void {
+            VaultSetting::query()->updateOrCreate(['key' => $key], ['value' => $stored]);
+
+            $this->auditLogger->record(AuditAction::SettingsChanged, null, ['changes' => [$key => ['old' => 'changed', 'new' => 'changed']]], $approver);
+        });
+
+        $this->stored = null;
     }
 
     /**
@@ -512,11 +557,12 @@ class VaultSettings
 
     /**
      * Store a secret setting encrypted, or clear it with an empty value. The audit entry says the secret changed and
-     * never holds it.
+     * never holds it. When change approval applies to a critical secret, it is stored encrypted as a pending change
+     * instead, and true is returned.
      *
      * @throws ValidationException
      */
-    public function setSecret(string $key, #[SensitiveParameter] ?string $plain, User $actor): void
+    public function setSecret(string $key, #[SensitiveParameter] ?string $plain, User $actor): bool
     {
         if (! in_array($key, self::SECRET_KEYS, true)) {
             throw ValidationException::withMessages([$key => __('This setting does not exist.')]);
@@ -524,7 +570,23 @@ class VaultSettings
 
         Gate::forUser($actor)->authorize(SettingsRegistry::get($key)->permission);
 
+        $approval = app(ChangeApproval::class);
+
+        if ($plain !== null && $plain !== '' && SettingsRegistry::get($key)->isCritical && $approval->isRequired()) {
+            $encrypted = $this->cipher->encrypt(self::secretContext($key), $plain);
+
+            $approval->propose('secret', $key, [
+                'secret' => base64_encode($encrypted->secretCiphertext),
+                'data_key' => base64_encode($encrypted->dataKeyCiphertext),
+                'key_version' => $encrypted->keyVersion,
+            ], $actor);
+
+            return true;
+        }
+
         $this->storeSecret($key, $plain, $actor);
+
+        return false;
     }
 
     /**

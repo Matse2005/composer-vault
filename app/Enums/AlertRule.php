@@ -12,6 +12,7 @@ enum AlertRule: string
     case KeyRotation = 'key_rotation';
     case AuditChainBreak = 'audit_chain_break';
     case SettingsChange = 'settings_change';
+    case ApprovalRequested = 'approval_requested';
 
     /**
      * Get the name of the rule as shown in alerts and on the notifications page.
@@ -27,6 +28,7 @@ enum AlertRule: string
             self::KeyRotation => 'Key rotation',
             self::AuditChainBreak => 'Audit chain break',
             self::SettingsChange => 'Retention or policy change',
+            self::ApprovalRequested => 'Change waiting for approval',
         };
     }
 
@@ -44,6 +46,7 @@ enum AlertRule: string
             self::KeyRotation => 'The vault key was rotated.',
             self::AuditChainBreak => 'The audit log chain does not verify.',
             self::SettingsChange => 'A retention, access policy or other policy setting changed.',
+            self::ApprovalRequested => 'An Owner proposed a critical change that another Owner has to approve. The other Owners are told too.',
         };
     }
 }

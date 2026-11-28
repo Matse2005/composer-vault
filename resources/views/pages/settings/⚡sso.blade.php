@@ -53,10 +53,12 @@ new #[Title('Single sign-on')] class extends Component {
         }
 
         try {
-            $settings->update($values, auth()->user());
+            $pending = $settings->update($values, auth()->user());
 
             if ($this->clientSecret !== '' && ! $settings->secretIsFromEnvironment('sso.client_secret')) {
-                $settings->setSecret('sso.client_secret', $this->clientSecret, auth()->user());
+                if ($settings->setSecret('sso.client_secret', $this->clientSecret, auth()->user())) {
+                    $pending[] = 'sso.client_secret';
+                }
             }
         } catch (ValidationException $exception) {
             foreach ($exception->errors() as $key => $messages) {
@@ -68,7 +70,7 @@ new #[Title('Single sign-on')] class extends Component {
             $this->reset('clientSecret');
         }
 
-        Flux::toast(__('Single sign-on settings saved.'));
+        Flux::toast($pending === [] ? __('Single sign-on settings saved.') : __('Saved. :count critical change(s) wait for the approval of another Owner.', ['count' => count($pending)]));
     }
 
     public function clearSecret(VaultSettings $settings): void
