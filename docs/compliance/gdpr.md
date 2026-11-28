@@ -17,6 +17,7 @@ The Data processing page in the dashboard (all roles can read it) shows the same
 | Audit log | Who did what and when (by account number), the IP address of the request | Audit log table | 365 days by default |
 | API access log | IP address of the caller, token prefix, project, result | Access log table | 90 days by default |
 | Invitations | Email address of the invited person and the admin who invited them | Invitations table | 30 days after the invitation expired, was accepted or was revoked |
+| Recent projects | Which projects an admin opened most recently (account number, project, time), for the sidebar | User recent projects table | Until the project is deleted. Not cleared when an admin is pseudonymised: it holds only the account number. |
 
 The audit log and the access log hold no names and no email addresses. People are referenced by account number. A test seeds known names and addresses and scans both tables to keep it that way.
 
