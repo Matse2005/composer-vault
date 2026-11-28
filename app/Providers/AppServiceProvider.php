@@ -8,6 +8,7 @@ use App\Models\AccessToken;
 use App\Models\User;
 use App\Vault\Audit\AuditAuthenticationEvents;
 use App\Vault\Authorization\Ability;
+use App\Vault\Authorization\RolePermissions;
 use App\Vault\Compliance\NotificationTargets;
 use App\Vault\Crypto\EnvKeyProvider;
 use App\Vault\Crypto\KeyProvider;
@@ -63,6 +64,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(KeyProvider::class, EnvKeyProvider::class);
         $this->app->scoped(VaultSettings::class);
+        $this->app->scoped(RolePermissions::class);
     }
 
     /**
@@ -119,7 +121,7 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureAuthorization(): void
     {
-        foreach (Ability::all() as $ability) {
+        foreach ([...Ability::all(), Ability::ApprovalManage] as $ability) {
             Gate::define($ability, fn (User $user): bool => $user->hasAbility($ability));
         }
     }

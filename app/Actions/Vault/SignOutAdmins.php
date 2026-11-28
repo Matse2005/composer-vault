@@ -22,7 +22,7 @@ class SignOutAdmins
      */
     public function handle(User $actor): int
     {
-        Gate::forUser($actor)->authorize(Ability::ManageCompliance);
+        Gate::forUser($actor)->authorize(Ability::IncidentsManage);
 
         return DB::transaction(function () use ($actor): int {
             User::query()->whereKeyNot($actor->getKey())->get()->each(

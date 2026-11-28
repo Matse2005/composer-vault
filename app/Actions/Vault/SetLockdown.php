@@ -21,7 +21,7 @@ class SetLockdown
      */
     public function handle(bool $on, User $actor): void
     {
-        Gate::forUser($actor)->authorize(Ability::ManageCompliance);
+        Gate::forUser($actor)->authorize(Ability::IncidentsManage);
 
         DB::transaction(function () use ($on, $actor): void {
             if ($on) {

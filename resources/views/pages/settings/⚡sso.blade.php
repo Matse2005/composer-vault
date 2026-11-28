@@ -13,9 +13,6 @@ new #[Title('Single sign-on')] class extends Component {
         'scopes' => 'Scopes',
         'button_label' => 'Button label',
         'groups_claim' => 'Groups claim',
-        'owner_groups' => 'Owner groups',
-        'admin_groups' => 'Admin groups',
-        'auditor_groups' => 'Auditor groups',
         'allowed_email_domains' => 'Allowed email domains',
         'mfa_acr_values' => 'acr values that count as multi-factor',
     ];

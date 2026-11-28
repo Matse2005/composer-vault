@@ -20,7 +20,7 @@ class CreateProject
      */
     public function handle(array $attributes): Project
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::ProjectsManage);
 
         return DB::transaction(function () use ($attributes): Project {
             $project = Project::query()->create($attributes);

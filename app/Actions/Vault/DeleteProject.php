@@ -18,7 +18,7 @@ class DeleteProject
      */
     public function handle(Project $project): void
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::ProjectsManage);
 
         DB::transaction(function () use ($project): void {
             $this->auditLogger->record(

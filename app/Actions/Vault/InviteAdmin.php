@@ -6,9 +6,11 @@ use App\Enums\AdminRole;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\InvitationNotAllowedException;
 use App\Models\Invitation;
+use App\Models\Role;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\Ability;
+use App\Vault\Authorization\RoleGuard;
 use App\Vault\Invitations\AdminInvitation;
 use App\Vault\Invitations\IssuedInvitation;
 use App\Vault\Settings\VaultSettings;
@@ -33,9 +35,12 @@ class InviteAdmin
      * @throws InvitationNotAllowedException When the address already belongs to an admin or has a usable invitation.
      * @throws AuthorizationException When the inviter may not invite admins.
      */
-    public function handle(string $email, User $inviter, AdminRole $role = AdminRole::Admin): IssuedInvitation
+    public function handle(string $email, User $inviter, AdminRole|Role $role = AdminRole::Admin): IssuedInvitation
     {
-        Gate::forUser($inviter)->authorize(Ability::ManageAdmins);
+        Gate::forUser($inviter)->authorize(Ability::AdminsManage);
+
+        $role = $role instanceof Role ? $role : Role::forAdminRole($role);
+        RoleGuard::assertMayAssign($inviter, $role);
 
         return $this->issue($email, $inviter, $role);
     }
@@ -53,13 +58,13 @@ class InviteAdmin
             throw new AuthorizationException;
         }
 
-        return $this->issue($email, null, AdminRole::Owner);
+        return $this->issue($email, null, Role::forAdminRole(AdminRole::Owner));
     }
 
     /**
      * @throws InvitationNotAllowedException
      */
-    private function issue(string $email, ?User $inviter, AdminRole $role): IssuedInvitation
+    private function issue(string $email, ?User $inviter, Role $role): IssuedInvitation
     {
         $email = mb_strtolower(trim($email));
 
@@ -71,14 +76,15 @@ class InviteAdmin
         $invitation = DB::transaction(function () use ($email, $role, $plainToken, $expireHours, $inviter): Invitation {
             $invitation = (new Invitation)->forceFill([
                 'email' => $email,
-                'role' => $role,
+                'role' => $role->adminRole(),
+                'custom_role_id' => $role->is_system ? null : $role->id,
                 'token_hash' => hash('sha256', $plainToken),
                 'invited_by' => $inviter?->getKey(),
                 'expires_at' => now()->addHours($expireHours),
             ]);
             $invitation->save();
 
-            $this->auditLogger->record(AuditAction::AdminInvited, $invitation, ['expires_at' => $invitation->expires_at, 'role' => $role], $inviter);
+            $this->auditLogger->record(AuditAction::AdminInvited, $invitation, ['expires_at' => $invitation->expires_at, 'role' => $role->slug], $inviter);
 
             return $invitation;
         });

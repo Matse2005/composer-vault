@@ -29,7 +29,7 @@ class CreateCredential
      */
     public function handle(array $attributes, #[SensitiveParameter] string $secret, array $projectIds): Credential
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::CredentialsManage);
 
         return DB::transaction(function () use ($attributes, $secret, $projectIds): Credential {
             $credential = new Credential($attributes);

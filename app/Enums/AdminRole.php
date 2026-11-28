@@ -8,6 +8,9 @@ enum AdminRole: string
     case Admin = 'admin';
     case Auditor = 'auditor';
 
+    /** A role made on the Roles page. Which one is in `users.custom_role_id`. */
+    case Custom = 'custom';
+
     /**
      * Get the name of the role as shown in the interface.
      */
@@ -25,6 +28,7 @@ enum AdminRole: string
             self::Owner => 'Full control, including admins, settings and compliance tools.',
             self::Admin => 'Manages projects, credentials and tokens, and reads the logs.',
             self::Auditor => 'Reads everything and exports logs, but changes nothing.',
+            self::Custom => 'A role made on the Roles page.',
         };
     }
 }

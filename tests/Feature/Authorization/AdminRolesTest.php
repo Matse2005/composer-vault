@@ -6,6 +6,7 @@ use App\Actions\Vault\DeactivateAdmin;
 use App\Actions\Vault\InviteAdmin;
 use App\Enums\AdminRole;
 use App\Exceptions\Vault\LastOwnerException;
+use App\Exceptions\Vault\RoleEscalationException;
 use App\Models\AuditEntry;
 use App\Models\Invitation;
 use App\Models\Project;
@@ -78,11 +79,11 @@ it('writes no audit entry when the role stays the same', function () {
     expect(AuditEntry::query()->count())->toBe(0);
 });
 
-it('keeps at least one active owner', function () {
+it('does not let anyone change their own role, so the last owner cannot demote themselves', function () {
     $onlyOwner = User::factory()->create();
 
     expect(fn () => app(ChangeAdminRole::class)->handle($onlyOwner, AdminRole::Admin, $onlyOwner))
-        ->toThrow(LastOwnerException::class)
+        ->toThrow(RoleEscalationException::class)
         ->and($onlyOwner->fresh()->role)->toBe(AdminRole::Owner);
 });
 

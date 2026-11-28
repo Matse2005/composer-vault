@@ -38,7 +38,7 @@ class UpdateCredential
      */
     public function handle(Credential $credential, array $attributes, #[SensitiveParameter] ?string $newSecret = null, ?array $projectIds = null): Credential
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::CredentialsManage);
 
         return DB::transaction(function () use ($credential, $attributes, $newSecret, $projectIds): Credential {
             if (isset($attributes['host'])) {

@@ -23,7 +23,7 @@ class RevokeTokensInBulk
      */
     public function handle(User $actor, ?Project $project = null): int
     {
-        Gate::forUser($actor)->authorize(Ability::ManageCompliance);
+        Gate::forUser($actor)->authorize(Ability::IncidentsManage);
 
         return DB::transaction(function () use ($actor, $project): int {
             $query = AccessToken::query()->whereNull('revoked_at');

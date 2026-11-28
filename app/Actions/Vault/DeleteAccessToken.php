@@ -19,7 +19,7 @@ class DeleteAccessToken
      */
     public function handle(AccessToken $token): void
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::TokensManage);
 
         DB::transaction(function () use ($token): void {
             $this->auditLogger->record(
