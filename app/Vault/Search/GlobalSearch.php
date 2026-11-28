@@ -36,7 +36,7 @@ class GlobalSearch
         if ($user->can(Ability::ProjectsView)) {
             $projects = Project::query()
                 ->select(['id', 'name', 'slug'])
-                ->where(fn ($query) => $query->whereRaw("name like ? escape '!'", [$like])->orWhereRaw("slug like ? escape '!'", [$like]))
+                ->where(fn ($query) => $query->whereRaw("lower(name) like lower(?) escape '!'", [$like])->orWhereRaw("lower(slug) like lower(?) escape '!'", [$like]))
                 ->orderBy('name')
                 ->limit(self::LIMIT)
                 ->get();
@@ -50,7 +50,7 @@ class GlobalSearch
             $credentials = Credential::query()
                 ->select(['id', 'project_id', 'name', 'host'])
                 ->with('project:id,name,slug')
-                ->where(fn ($query) => $query->whereRaw("name like ? escape '!'", [$like])->orWhereRaw("host like ? escape '!'", [$like]))
+                ->where(fn ($query) => $query->whereRaw("lower(name) like lower(?) escape '!'", [$like])->orWhereRaw("lower(host) like lower(?) escape '!'", [$like]))
                 ->orderBy('name')
                 ->limit(self::LIMIT)
                 ->get();
@@ -64,7 +64,7 @@ class GlobalSearch
             $tokens = AccessToken::query()
                 ->select(['id', 'project_id', 'name'])
                 ->with('project:id,name,slug')
-                ->whereRaw("name like ? escape '!'", [$like])
+                ->whereRaw("lower(name) like lower(?) escape '!'", [$like])
                 ->orderBy('name')
                 ->limit(self::LIMIT)
                 ->get();
