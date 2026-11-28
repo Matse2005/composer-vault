@@ -3,14 +3,18 @@
 namespace App\Vault\Settings;
 
 use App\Enums\AuditAction;
+use App\Exceptions\Vault\DecryptionFailedException;
 use App\Models\User;
 use App\Models\VaultSetting;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\Ability;
+use App\Vault\Crypto\EncryptedSecret;
+use App\Vault\Crypto\SecretCipher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use SensitiveParameter;
 
 /**
  * The policy settings a company changes from the interface: retention, policies and organisation details. Values live
@@ -25,7 +29,13 @@ class VaultSettings
     /** @var array<string, mixed>|null */
     private ?array $stored = null;
 
-    public function __construct(private AuditLogger $auditLogger) {}
+    /** The settings that hold a secret. They are stored encrypted, never shown again and never audited by value. */
+    public const SECRET_KEYS = ['sso.client_secret'];
+
+    /** The config key of the environment variable that overrides a secret setting. */
+    public const SECRET_ENVIRONMENT = ['sso.client_secret' => 'vault.sso.client_secret'];
+
+    public function __construct(private AuditLogger $auditLogger, private SecretCipher $cipher) {}
 
     /**
      * The validation rules per setting. Integer minimums are guards against accidental loss of evidence, not legal
@@ -45,6 +55,20 @@ class VaultSettings
             'organisation.name' => ['nullable', 'string', 'max:255'],
             'organisation.security_contact' => ['nullable', 'string', 'email:rfc', 'max:255'],
             'organisation.privacy_contact' => ['nullable', 'string', 'email:rfc', 'max:255'],
+            'sso.enabled' => ['boolean'],
+            'sso.issuer' => ['nullable', 'string', 'url:https', 'max:255'],
+            'sso.client_id' => ['nullable', 'string', 'max:255'],
+            'sso.scopes' => ['required', 'string', 'max:255'],
+            'sso.button_label' => ['required', 'string', 'max:60'],
+            'sso.groups_claim' => ['required', 'string', 'max:100'],
+            'sso.owner_groups' => ['nullable', 'string', 'max:1000'],
+            'sso.admin_groups' => ['nullable', 'string', 'max:1000'],
+            'sso.auditor_groups' => ['nullable', 'string', 'max:1000'],
+            'sso.allowed_email_domains' => ['nullable', 'string', 'max:1000'],
+            'sso.auto_provision' => ['boolean'],
+            'sso.enforce' => ['boolean'],
+            'sso.trust_idp_mfa' => ['boolean'],
+            'sso.mfa_acr_values' => ['nullable', 'string', 'max:1000'],
         ];
     }
 
@@ -65,6 +89,46 @@ class VaultSettings
             'organisation.name' => null,
             'organisation.security_contact' => null,
             'organisation.privacy_contact' => null,
+            'sso.enabled' => false,
+            'sso.issuer' => null,
+            'sso.client_id' => null,
+            'sso.scopes' => 'openid email profile',
+            'sso.button_label' => 'Sign in with SSO',
+            'sso.groups_claim' => 'groups',
+            'sso.owner_groups' => null,
+            'sso.admin_groups' => null,
+            'sso.auditor_groups' => null,
+            'sso.allowed_email_domains' => null,
+            'sso.auto_provision' => false,
+            'sso.enforce' => false,
+            'sso.trust_idp_mfa' => false,
+            'sso.mfa_acr_values' => null,
+        ];
+    }
+
+    /**
+     * The settings an environment variable can override, with the config key that holds the variable. A value set
+     * in the environment wins over the dashboard and locks the field.
+     *
+     * @return array<string, string>
+     */
+    public static function environmentOverrides(): array
+    {
+        return [
+            'sso.enabled' => 'vault.sso.enabled',
+            'sso.issuer' => 'vault.sso.issuer',
+            'sso.client_id' => 'vault.sso.client_id',
+            'sso.scopes' => 'vault.sso.scopes',
+            'sso.button_label' => 'vault.sso.button_label',
+            'sso.groups_claim' => 'vault.sso.groups_claim',
+            'sso.owner_groups' => 'vault.sso.role_groups.owner',
+            'sso.admin_groups' => 'vault.sso.role_groups.admin',
+            'sso.auditor_groups' => 'vault.sso.role_groups.auditor',
+            'sso.allowed_email_domains' => 'vault.sso.allowed_email_domains',
+            'sso.auto_provision' => 'vault.sso.auto_provision',
+            'sso.enforce' => 'vault.sso.enforce',
+            'sso.trust_idp_mfa' => 'vault.sso.trust_idp_mfa',
+            'sso.mfa_acr_values' => 'vault.sso.mfa_acr_values',
         ];
     }
 
@@ -114,10 +178,24 @@ class VaultSettings
     }
 
     /**
-     * Get the stored value of a setting, or its default.
+     * Determine whether an environment variable sets the value, which then locks the dashboard field.
+     */
+    public function isFromEnvironment(string $key): bool
+    {
+        $configKey = self::environmentOverrides()[$key] ?? null;
+
+        return $configKey !== null && config($configKey) !== null && config($configKey) !== '';
+    }
+
+    /**
+     * Get the value of a setting: the environment, then the stored value, then the default.
      */
     public function get(string $key): mixed
     {
+        if ($this->isFromEnvironment($key)) {
+            return config(self::environmentOverrides()[$key]);
+        }
+
         $values = $this->values();
 
         return array_key_exists($key, $values) ? $values[$key] : (self::defaults()[$key] ?? null);
@@ -176,6 +254,90 @@ class VaultSettings
     }
 
     /**
+     * Determine whether a secret setting has a value, from the environment or the dashboard.
+     */
+    public function hasSecret(string $key): bool
+    {
+        return $this->secret($key) !== null;
+    }
+
+    /**
+     * Determine whether an environment variable sets the secret.
+     */
+    public function secretIsFromEnvironment(string $key): bool
+    {
+        return filled(config(self::SECRET_ENVIRONMENT[$key] ?? ''));
+    }
+
+    /**
+     * Get a secret in plain text: the environment value, or the stored one decrypted. Only the code that talks to the
+     * identity provider may call this.
+     */
+    public function secret(string $key): ?string
+    {
+        if ($this->secretIsFromEnvironment($key)) {
+            return (string) config(self::SECRET_ENVIRONMENT[$key]);
+        }
+
+        $stored = $this->values()[$key] ?? null;
+
+        if (! is_array($stored) || ! isset($stored['secret'], $stored['data_key'], $stored['key_version'])) {
+            return null;
+        }
+
+        try {
+            return $this->cipher->decrypt(self::secretContext($key), new EncryptedSecret(
+                base64_decode((string) $stored['secret']),
+                base64_decode((string) $stored['data_key']),
+                (int) $stored['key_version'],
+            ));
+        } catch (DecryptionFailedException) {
+            return null;
+        }
+    }
+
+    /**
+     * Store a secret setting encrypted, or clear it with an empty value. The audit entry says the secret changed and
+     * never holds it.
+     *
+     * @throws ValidationException
+     */
+    public function setSecret(string $key, #[SensitiveParameter] ?string $plain, User $actor): void
+    {
+        Gate::forUser($actor)->authorize(Ability::ManageSettings);
+
+        if (! in_array($key, self::SECRET_KEYS, true)) {
+            throw ValidationException::withMessages([$key => __('This setting does not exist.')]);
+        }
+
+        DB::transaction(function () use ($key, $plain, $actor): void {
+            if ($plain === null || $plain === '') {
+                VaultSetting::query()->whereKey($key)->delete();
+            } else {
+                $encrypted = $this->cipher->encrypt(self::secretContext($key), $plain);
+
+                VaultSetting::query()->updateOrCreate(['key' => $key], ['value' => [
+                    'secret' => base64_encode($encrypted->secretCiphertext),
+                    'data_key' => base64_encode($encrypted->dataKeyCiphertext),
+                    'key_version' => $encrypted->keyVersion,
+                ]]);
+            }
+
+            $this->auditLogger->record(AuditAction::SettingsChanged, null, ['changes' => [$key => ['old' => 'changed', 'new' => 'changed']]], $actor);
+        });
+
+        $this->stored = null;
+    }
+
+    /**
+     * The identifier that binds a stored secret to its setting, so it cannot be moved to another one.
+     */
+    public static function secretContext(string $key): string
+    {
+        return 'composer-vault:setting:'.$key;
+    }
+
+    /**
      * Validate the values. A dot in a key would be read as nesting, so the keys are swapped for plain names while the
      * validator runs. An empty string counts as no value.
      *
@@ -231,7 +393,13 @@ class VaultSettings
             return null;
         }
 
-        return is_int(self::defaults()[$key] ?? null) || str_contains($key, '_days') ? (int) $value : trim((string) $value);
+        $default = self::defaults()[$key] ?? null;
+
+        return match (true) {
+            is_bool($default) => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+            is_int($default) || str_contains($key, '_days') => (int) $value,
+            default => trim((string) $value),
+        };
     }
 
     private function nullableInt(string $key): ?int

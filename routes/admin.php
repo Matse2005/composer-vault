@@ -42,5 +42,6 @@ Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
 
     Route::middleware('can:'.Ability::ManageSettings)->group(function () {
         Route::livewire('admin-settings/organisation', 'pages::settings.organisation')->name('settings.organisation');
+        Route::livewire('admin-settings/sso', 'pages::settings.sso')->name('settings.sso');
     });
 });

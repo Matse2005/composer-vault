@@ -55,6 +55,9 @@
                     <flux:sidebar.item icon="building-office" :href="route('settings.organisation')" :current="request()->routeIs('settings.organisation')" wire:navigate>
                         {{ __('Organisation') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="identification" :href="route('settings.sso')" :current="request()->routeIs('settings.sso')" wire:navigate>
+                        {{ __('Single sign-on') }}
+                    </flux:sidebar.item>
                     @endcan
                     @can('logs.view')
                     <flux:sidebar.item icon="shield-exclamation" :href="route('security-status')" :current="request()->routeIs('security-status')" wire:navigate>

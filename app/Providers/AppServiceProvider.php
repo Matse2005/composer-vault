@@ -24,10 +24,12 @@ use App\Vault\Health\TrustedProxiesCheck;
 use App\Vault\Health\VaultKeyCheck;
 use App\Vault\RequestAttributes;
 use App\Vault\Settings\VaultSettings;
+use App\Vault\Sso\SsoLogout;
 use App\Vault\Tokens\AdminIpList;
 use App\Vault\Tokens\TrustedProxyList;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -134,6 +136,7 @@ class AppServiceProvider extends ServiceProvider
     protected function configureAuditListeners(): void
     {
         Event::listen(Login::class, [AuditAuthenticationEvents::class, 'handleLogin']);
+        Event::listen(Logout::class, [SsoLogout::class, 'capture']);
         Event::listen(TwoFactorAuthenticationConfirmed::class, [AuditAuthenticationEvents::class, 'handleTwoFactorConfirmed']);
         Event::listen(TwoFactorAuthenticationDisabled::class, [AuditAuthenticationEvents::class, 'handleTwoFactorDisabled']);
         Event::listen(PasskeyRegistered::class, [AuditAuthenticationEvents::class, 'handlePasskeyRegistered']);
@@ -145,6 +148,7 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureRateLimiting(): void
     {
+        RateLimiter::for('sso', fn (Request $request): Limit => Limit::perMinute(10)->by((string) $request->ip()));
         RateLimiter::for('invitations', fn (Request $request): Limit => Limit::perMinute(10)->by((string) $request->ip()));
 
         RateLimiter::for('vault-api', function (Request $request): Limit {
