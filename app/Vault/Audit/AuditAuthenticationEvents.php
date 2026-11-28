@@ -2,10 +2,12 @@
 
 namespace App\Vault\Audit;
 
+use App\Enums\AlertRule;
 use App\Enums\AuditAction;
 use App\Http\Controllers\SsoController;
 use App\Http\Middleware\EnforceAbsoluteSessionLifetime;
 use App\Models\User;
+use App\Vault\Compliance\SecurityAlerts;
 use Illuminate\Auth\Events\Login;
 use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
 use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
@@ -40,6 +42,9 @@ class AuditAuthenticationEvents
 
         if ($event->user instanceof User && $event->user->is_break_glass && $method === 'local') {
             $this->record(AuditAction::BreakGlassLogin, $event->user);
+
+            $alerts = app(SecurityAlerts::class);
+            $alerts->send(AlertRule::BreakGlassLogin, (string) $event->user->getKey(), "Break-glass admin #{$event->user->getKey()} logged in from {$this->ip()}.", $alerts->otherOwners($event->user));
         }
     }
 
@@ -61,6 +66,11 @@ class AuditAuthenticationEvents
     public function handlePasskeyDeleted(PasskeyDeleted $event): void
     {
         $this->record(AuditAction::PasskeyRemoved, $event->user, ['passkey_id' => $event->passkey->getKey()]);
+    }
+
+    private function ip(): string
+    {
+        return (string) request()->ip();
     }
 
     /**

@@ -2,11 +2,13 @@
 
 namespace App\Actions\Vault;
 
+use App\Enums\AdminRole;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\InvalidInvitationException;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Compliance\SecurityAlerts;
 use App\Vault\Sso\SsoConfig;
 use Illuminate\Support\Facades\DB;
 use SensitiveParameter;
@@ -49,6 +51,10 @@ class AcceptInvitation
             $invitation->forceFill(['accepted_at' => now()])->save();
 
             $this->auditLogger->record(AuditAction::AdminJoined, $user, ['invitation_id' => $invitation->id], $user);
+
+            if ($user->role === AdminRole::Owner && ! $invitation->isFirstOwner()) {
+                DB::afterCommit(fn () => app(SecurityAlerts::class)->ownerChange($user, 'An Owner joined', null));
+            }
 
             return $user;
         });

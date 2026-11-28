@@ -10,6 +10,7 @@ use App\Models\Invitation;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\OwnerGuard;
+use App\Vault\Compliance\SecurityAlerts;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -246,6 +247,10 @@ class SsoSignIn
 
         $this->auditLogger->record(AuditAction::AdminProvisioned, $user, ['role' => $role, 'source' => $source], null);
 
+        if ($role === AdminRole::Owner) {
+            DB::afterCommit(fn () => app(SecurityAlerts::class)->ownerChange($user, 'An Owner was provisioned', null));
+        }
+
         return $user;
     }
 
@@ -271,6 +276,10 @@ class SsoSignIn
             $user->forceFill(['role' => $role])->save();
 
             $this->auditLogger->record(AuditAction::AdminRoleChanged, $user, ['old_role' => $old, 'new_role' => $role, 'source' => 'sso'], null);
+
+            if ($role === AdminRole::Owner) {
+                DB::afterCommit(fn () => app(SecurityAlerts::class)->ownerChange($user, 'Admin became an Owner through single sign-on', null));
+            }
         });
     }
 

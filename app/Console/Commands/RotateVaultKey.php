@@ -2,12 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\AlertRule;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\DecryptionFailedException;
 use App\Exceptions\Vault\InvalidVaultKeyException;
 use App\Models\Credential;
 use App\Models\VaultSetting;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Compliance\SecurityAlerts;
 use App\Vault\Crypto\EncryptedSecret;
 use App\Vault\Crypto\KeyProvider;
 use App\Vault\Crypto\MasterKey;
@@ -112,6 +114,10 @@ class RotateVaultKey extends Command
                 'credential_count' => $rotated,
             ]);
         });
+
+        if ($failedIds === []) {
+            app(SecurityAlerts::class)->send(AlertRule::KeyRotation, 'key-version-'.$newKey->version, "The vault key was rotated to version {$newKey->version}.");
+        }
 
         if ($failedIds !== []) {
             $this->components->error(count($failedIds).' credential(s) could not be decrypted with the known keys. Nothing was changed.');

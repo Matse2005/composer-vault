@@ -2,17 +2,20 @@
 
 namespace App\Vault\Settings;
 
+use App\Enums\AlertRule;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\DecryptionFailedException;
 use App\Models\User;
 use App\Models\VaultSetting;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\Ability;
+use App\Vault\Compliance\SecurityAlerts;
 use App\Vault\Crypto\EncryptedSecret;
 use App\Vault\Crypto\SecretCipher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use SensitiveParameter;
@@ -25,16 +28,16 @@ use SensitiveParameter;
 class VaultSettings
 {
     /** Settings whose values are contact details. They are audited as "changed" without the value (invariant 8). */
-    private const PERSONAL_PREFIX = 'organisation.';
+    private const PERSONAL_PREFIXES = ['organisation.', 'notifications.'];
 
     /** @var array<string, mixed>|null */
     private ?array $stored = null;
 
     /** The settings that hold a secret. They are stored encrypted, never shown again and never audited by value. */
-    public const SECRET_KEYS = ['sso.client_secret'];
+    public const SECRET_KEYS = ['sso.client_secret', 'notifications.slack_webhook'];
 
     /** The config key of the environment variable that overrides a secret setting. */
-    public const SECRET_ENVIRONMENT = ['sso.client_secret' => 'vault.sso.client_secret'];
+    public const SECRET_ENVIRONMENT = ['sso.client_secret' => 'vault.sso.client_secret', 'notifications.slack_webhook' => 'vault.health.notify_slack_webhook'];
 
     public function __construct(private AuditLogger $auditLogger, private SecretCipher $cipher) {}
 
@@ -58,6 +61,7 @@ class VaultSettings
             'organisation.privacy_contact' => ['nullable', 'string', 'email:rfc', 'max:255'],
             'security.session_absolute_hours' => ['required', 'integer', 'min:1', 'max:720'],
             'security.inactive_deactivate_days' => ['required', 'integer', 'min:7', 'max:3650'],
+            'notifications.mail' => ['nullable', 'string', 'email:rfc', 'max:255'],
             'security.log_channel' => ['nullable', 'string', Rule::in(array_keys((array) config('logging.channels')))],
             'sso.enabled' => ['boolean'],
             'sso.issuer' => ['nullable', 'string', 'url:https', 'max:255'],
@@ -95,6 +99,7 @@ class VaultSettings
             'organisation.privacy_contact' => null,
             'security.session_absolute_hours' => 12,
             'security.inactive_deactivate_days' => 90,
+            'notifications.mail' => null,
             'security.log_channel' => null,
             'sso.enabled' => false,
             'sso.issuer' => null,
@@ -124,6 +129,7 @@ class VaultSettings
         return [
             'security.session_absolute_hours' => 'vault.admin.session_absolute_hours',
             'security.inactive_deactivate_days' => 'vault.admin.inactive_deactivate_days',
+            'notifications.mail' => 'vault.health.notify_mail',
             'security.log_channel' => 'vault.security_log_channel',
             'sso.enabled' => 'vault.sso.enabled',
             'sso.issuer' => 'vault.sso.issuer',
@@ -180,6 +186,11 @@ class VaultSettings
     public function inactiveDeactivateDays(): int
     {
         return (int) $this->get('security.inactive_deactivate_days');
+    }
+
+    public function notificationMail(): ?string
+    {
+        return $this->nullableString('notifications.mail');
     }
 
     public function securityLogChannel(): ?string
@@ -259,7 +270,7 @@ class VaultSettings
                     continue;
                 }
 
-                $changes[$key] = str_starts_with($key, self::PERSONAL_PREFIX)
+                $changes[$key] = Str::startsWith($key, self::PERSONAL_PREFIXES)
                     ? ['old' => 'changed', 'new' => 'changed']
                     : ['old' => $old, 'new' => $value];
 
@@ -272,6 +283,12 @@ class VaultSettings
 
             if ($changes !== []) {
                 $this->auditLogger->record(AuditAction::SettingsChanged, null, ['changes' => $changes], $actor);
+
+                $policyKeys = array_values(array_filter(array_keys($changes), fn (string $key): bool => Str::startsWith($key, ['retention.', 'policy.', 'security.'])));
+
+                if ($policyKeys !== []) {
+                    DB::afterCommit(fn () => app(SecurityAlerts::class)->send(AlertRule::SettingsChange, implode(',', $policyKeys), 'These settings changed by admin #'.$actor->getKey().': '.implode(', ', $policyKeys).'.'));
+                }
             }
         });
 

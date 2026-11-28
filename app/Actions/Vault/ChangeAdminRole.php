@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\Ability;
 use App\Vault\Authorization\OwnerGuard;
+use App\Vault\Compliance\SecurityAlerts;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -40,6 +41,10 @@ class ChangeAdminRole
             $admin->forceFill(['role' => $role, 'is_break_glass' => $role === AdminRole::Owner && $admin->is_break_glass])->save();
 
             $this->auditLogger->record(AuditAction::AdminRoleChanged, $admin, ['old_role' => $old, 'new_role' => $role], $actor);
+
+            if ($role === AdminRole::Owner) {
+                DB::afterCommit(fn () => app(SecurityAlerts::class)->ownerChange($admin, 'Admin became an Owner', $actor));
+            }
         });
     }
 }

@@ -64,6 +64,9 @@
                     <flux:sidebar.item icon="archive-box" :href="route('settings.retention')" :current="request()->routeIs('settings.retention')" wire:navigate>
                         {{ __('Retention') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="bell-alert" :href="route('settings.notifications')" :current="request()->routeIs('settings.notifications')" wire:navigate>
+                        {{ __('Notifications') }}
+                    </flux:sidebar.item>
                     @endcan
                     @can('logs.view')
                     <flux:sidebar.item icon="shield-exclamation" :href="route('security-status')" :current="request()->routeIs('security-status')" wire:navigate>

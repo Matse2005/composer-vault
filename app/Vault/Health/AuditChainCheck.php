@@ -2,7 +2,9 @@
 
 namespace App\Vault\Health;
 
+use App\Enums\AlertRule;
 use App\Vault\Audit\AuditChainVerifier;
+use App\Vault\Compliance\SecurityAlerts;
 use Illuminate\Support\Facades\Cache;
 use Spatie\Health\Checks\Check;
 use Spatie\Health\Checks\Result;
@@ -35,6 +37,8 @@ class AuditChainCheck extends Check
         if ($outcome['broken_at'] === null) {
             return Result::make()->ok()->shortSummary('Audit chain is intact');
         }
+
+        app(SecurityAlerts::class)->send(AlertRule::AuditChainBreak, 'chain', "The audit log chain is broken at entry {$outcome['broken_at']}.");
 
         return Result::make()
             ->failed("The audit log chain is broken at entry {$outcome['broken_at']}.")
