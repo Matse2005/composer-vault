@@ -3,6 +3,7 @@
 namespace App\Vault\Audit;
 
 use App\Enums\AuditAction;
+use App\Http\Controllers\SsoController;
 use App\Models\User;
 use Illuminate\Auth\Events\Login;
 use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
@@ -18,9 +19,19 @@ class AuditAuthenticationEvents
 {
     public function __construct(private AuditLogger $auditLogger) {}
 
+    /**
+     * Audit a login and remember its time. The method is "sso" when the sign-in came through the identity provider
+     * and "local" for the password and passkey logins.
+     */
     public function handleLogin(Login $event): void
     {
-        $this->record(AuditAction::AdminLoggedIn, $event->user);
+        if ($event->user instanceof User) {
+            $event->user->forceFill(['last_login_at' => now()])->save();
+        }
+
+        $method = request()->hasSession() ? request()->session()->pull(SsoController::METHOD_KEY, 'local') : 'local';
+
+        $this->record(AuditAction::AdminLoggedIn, $event->user, ['method' => $method]);
     }
 
     public function handleTwoFactorConfirmed(TwoFactorAuthenticationConfirmed $event): void

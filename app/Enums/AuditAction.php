@@ -31,6 +31,9 @@ enum AuditAction: string
     case VaultInstalled = 'vault_installed';
     case SettingsChanged = 'settings_changed';
     case AdminRoleChanged = 'admin_role_changed';
+    case SsoLoginRejected = 'sso_login_rejected';
+    case SsoAccountLinked = 'sso_account_linked';
+    case AdminProvisioned = 'admin_provisioned';
 
     /**
      * Get the short English sentence stored as the description of the entry, for example "Credential created".

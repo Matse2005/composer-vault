@@ -140,4 +140,38 @@ return [
         'notify_slack_webhook' => env('VAULT_HEALTH_NOTIFY_SLACK_WEBHOOK'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Single Sign-On (OpenID Connect)
+    |--------------------------------------------------------------------------
+    |
+    | Sign-in through the identity provider of the company. These settings are
+    | managed on the Single sign-on page of the dashboard. A variable set here
+    | overrides the dashboard value and locks the field there. Unset variables
+    | stay empty. The client secret is stored encrypted when set in the dashboard.
+    | The role of a person comes from the groups claim of the ID token (comma
+    | separated group names per role, highest role wins).
+    |
+    */
+
+    'sso' => [
+        'enabled' => env('VAULT_SSO_ENABLED'),
+        'issuer' => env('VAULT_SSO_ISSUER'),
+        'client_id' => env('VAULT_SSO_CLIENT_ID'),
+        'client_secret' => env('VAULT_SSO_CLIENT_SECRET'),
+        'scopes' => env('VAULT_SSO_SCOPES'),
+        'button_label' => env('VAULT_SSO_BUTTON_LABEL'),
+        'groups_claim' => env('VAULT_SSO_GROUPS_CLAIM'),
+        'role_groups' => [
+            'owner' => env('VAULT_SSO_OWNER_GROUPS'),
+            'admin' => env('VAULT_SSO_ADMIN_GROUPS'),
+            'auditor' => env('VAULT_SSO_AUDITOR_GROUPS'),
+        ],
+        'allowed_email_domains' => env('VAULT_SSO_ALLOWED_DOMAINS'),
+        'auto_provision' => env('VAULT_SSO_AUTO_PROVISION'),
+        'enforce' => env('VAULT_SSO_ENFORCE'),
+        'trust_idp_mfa' => env('VAULT_SSO_TRUST_IDP_MFA'),
+        'mfa_acr_values' => env('VAULT_SSO_MFA_ACR_VALUES'),
+    ],
+
 ];

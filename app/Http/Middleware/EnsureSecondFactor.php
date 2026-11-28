@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\SsoController;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -44,7 +45,9 @@ class EnsureSecondFactor
             return redirect()->route('login');
         }
 
-        if (! $user instanceof User || $user->hasSecondFactor() || $request->routeIs(...self::ALLOWED_ROUTES)) {
+        $idpVouched = $request->hasSession() && $request->session()->get(SsoController::SECOND_FACTOR_KEY) === true;
+
+        if (! $user instanceof User || $user->hasSecondFactor() || $idpVouched || $request->routeIs(...self::ALLOWED_ROUTES)) {
             return $next($request);
         }
 

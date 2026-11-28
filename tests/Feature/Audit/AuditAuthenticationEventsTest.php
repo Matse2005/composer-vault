@@ -21,7 +21,7 @@ it('audits a real login with the admin as subject and actor', function () {
         ->and($entry->subject_type)->toBe(User::class)
         ->and($entry->subject_id)->toBe((string) $user->id)
         ->and((string) $entry->causer_id)->toBe((string) $user->id)
-        ->and($entry->properties->toArray())->toEqual([])
+        ->and($entry->properties->toArray())->toEqual(['method' => 'local'])
         ->and($entry->ip)->not->toBeNull();
 });
 
