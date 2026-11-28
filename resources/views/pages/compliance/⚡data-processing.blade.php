@@ -45,6 +45,12 @@ new #[Title('Data processing')] class extends Component {
                 'stored' => 'Invitations table.',
                 'retention' => $settings->invitationRetentionDays().' days after the invitation expired, was accepted or was revoked.',
             ],
+            [
+                'category' => 'Recent projects',
+                'data' => 'Which projects an admin opened most recently, by account number and project, for the sidebar.',
+                'stored' => 'User recent projects table.',
+                'retention' => 'Until the project is deleted. The table is not cleared when an admin is pseudonymised: it holds only the account number.',
+            ],
         ];
     }
 }; ?>

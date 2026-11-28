@@ -42,6 +42,29 @@ Status values: fixed (in this phase), open (needs a decision by the owner before
 - Every admin page and Livewire update sits behind authentication and the second factor. There is no registration route. Invitations with unknown, malformed, expired, revoked or used tokens all get the same 404, and accepting one is transactional.
 - The only raw SQL uses bound parameters. There are no open redirects, no unescaped Blade output except the QR code from Fortify, and no weak randomness.
 
+## Addendum for phases 8 to 10
+
+I repeated the checklist for what was added after the first review: roles and permissions, single sign-on, the settings store, change approval, compliance tools, project owned credentials and tokens, the recent projects table and the search. This was done by reading the code and by running tests, not by an outside tester.
+
+Checks that passed:
+
+- Secrets in settings: the one setting that holds a secret, the single sign-on client secret, is stored with the same envelope encryption as a credential, bound to the setting key. The dashboard never renders it back, the history page never shows a secret, and a pending change holds it encrypted.
+- Authorization: every admin page route has a `can:` permission, and every action calls the gate again. The two routes that look open in the route list (`incidents.timeline` and `personal-data.export`) are authorized in the action they call, and tests cover a role without the permission for each. The authorization matrix test runs every action for every role.
+- Project ownership: a credential and a token belong to one project. A token asking for another project's slug gets the same 404 as an unknown project, the API returns only the credentials of its own project, and a moved credential keeps its ciphertext (the credential ID is the associated data and does not change). A host is unique per project in the database.
+- Search: it reads only the searched columns and never a secret, ciphertext or token hash (a test records the SQL), it escapes wildcards, and it respects the view permissions. Results are never counted across projects.
+- Single sign-on: the state and nonce are checked, the email must be verified by the issuer before an account is linked, a session needs the second factor unless the provider vouches for multi-factor sign-in, and no redirect target comes from the request except Laravel's intended URL on the same host.
+- Lockout: saving an allowed IP list that excludes the admin's own address, or a retention that would delete audit entries, needs a typed confirmation, and the last active Owner cannot be removed. Break-glass Owners are exempt from the IP restriction.
+- Logs: the audit log and the access log still hold no names or email addresses (the scan test seeds known values), and the new recent projects table holds only account and project IDs.
+- Fonts and scripts come from the application itself, so the content security policy needs no third party host.
+
+Findings:
+
+| No | Severity | Finding | Status |
+|---|---|---|---|
+| 16 | low | The recent projects table is not cleared when an admin is pseudonymised and is not in the personal data export. It holds an account number, a project ID and a time. | accepted: listed in the data processing inventory |
+| 17 | low | The search result list is a list of links, not an ARIA combobox. | accepted: usable with the keyboard through the tab order |
+| 18 | info | The provider setup guides in `docs/compliance/sso.md` describe the generic OpenID Connect settings but have no step by step guide for Keycloak, Entra ID or Google Workspace, and the sign-in was tested against a fake provider only, not against a real one. | open: run it against a real Keycloak before relying on it |
+| 19 | info | The legal article numbers and deadlines in `docs/compliance/nis2.md` and `gdpr.md` could not be checked against the official texts. | open: have the texts checked |
 ## Release condition
 
-Findings 3, 4, 5, 7 and 9 are open, and the items under "Not performed" are not done. The plan requires every finding to be fixed or accepted by the owner before 1.0.0 is released.
+Findings 3, 4, 5, 7, 9, 18 and 19 are open, and the items under "Not performed" are not done. The plan requires every finding to be fixed or accepted by the owner before 1.0.0 is released. The version is set to 1.0.0 in the repository, but the tag `v1.0.0` is not pushed: that needs the owner's decision on the open findings.
