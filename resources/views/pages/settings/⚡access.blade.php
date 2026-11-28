@@ -11,10 +11,23 @@ new #[Title('Access policy')] class extends Component {
 
     public string $inactiveDeactivateDays = '';
 
+    public string $securityLogChannel = '';
+
     public function mount(VaultSettings $settings): void
     {
         $this->sessionAbsoluteHours = (string) $settings->sessionAbsoluteHours();
         $this->inactiveDeactivateDays = (string) $settings->inactiveDeactivateDays();
+        $this->securityLogChannel = (string) $settings->securityLogChannel();
+    }
+
+    /**
+     * The log channels of config/logging.php that can receive the security events.
+     *
+     * @return list<string>
+     */
+    public function channels(): array
+    {
+        return array_keys((array) config('logging.channels'));
     }
 
     public function isLocked(string $key): bool
@@ -35,11 +48,19 @@ new #[Title('Access policy')] class extends Component {
             $values['security.inactive_deactivate_days'] = $this->inactiveDeactivateDays;
         }
 
+        if (! $settings->isFromEnvironment('security.log_channel')) {
+            $values['security.log_channel'] = $this->securityLogChannel;
+        }
+
         try {
             $settings->update($values, auth()->user());
         } catch (ValidationException $exception) {
             foreach ($exception->errors() as $key => $messages) {
-                $this->addError($key === 'security.session_absolute_hours' ? 'sessionAbsoluteHours' : 'inactiveDeactivateDays', $messages[0]);
+                $this->addError(match ($key) {
+                    'security.session_absolute_hours' => 'sessionAbsoluteHours',
+                    'security.log_channel' => 'securityLogChannel',
+                    default => 'inactiveDeactivateDays',
+                }, $messages[0]);
             }
 
             return;
@@ -68,6 +89,19 @@ new #[Title('Access policy')] class extends Component {
             @if ($this->isLocked('security.inactive_deactivate_days'))
                 <flux:text class="mt-1 text-xs">{{ __('Set by the environment.') }}</flux:text>
             @endif
+        </div>
+
+        <div>
+            <flux:select wire:model="securityLogChannel" :label="__('Security log channel')" :description="__('Every audit entry and every failed API access is also written to this log channel as one JSON line, for a SIEM. The lines hold no names and no audit details.')" :disabled="$this->isLocked('security.log_channel')">
+                <flux:select.option value="">{{ __('Off') }}</flux:select.option>
+                @foreach ($this->channels() as $channel)
+                    <flux:select.option :value="$channel">{{ $channel }}</flux:select.option>
+                @endforeach
+            </flux:select>
+            @if ($this->isLocked('security.log_channel'))
+                <flux:text class="mt-1 text-xs">{{ __('Set by the environment.') }}</flux:text>
+            @endif
+            <flux:error name="securityLogChannel" />
         </div>
 
         <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>

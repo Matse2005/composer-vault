@@ -5,6 +5,7 @@ namespace App\Vault\Audit;
 use App\Enums\AuditAction;
 use App\Models\AuditEntry;
 use App\Models\User;
+use App\Vault\Compliance\SecurityEventStream;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -79,6 +80,8 @@ class AuditLogger
                 'sequence' => $sequence,
                 'last_hash' => $entry->hash,
             ]);
+
+            DB::afterCommit(fn () => app(SecurityEventStream::class)->audit($entry));
 
             return $entry;
         });

@@ -156,6 +156,19 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Security Log Channel
+    |--------------------------------------------------------------------------
+    |
+    | The name of a log channel from config/logging.php. Every audit entry and
+    | every failed API access is also written there as one JSON line, for a
+    | SIEM. Empty means off. It can also be set on the Access policy page.
+    |
+    */
+
+    'security_log_channel' => env('VAULT_SECURITY_LOG_CHANNEL'),
+
     'sso' => [
         'enabled' => env('VAULT_SSO_ENABLED'),
         'issuer' => env('VAULT_SSO_ISSUER'),
