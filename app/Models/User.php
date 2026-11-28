@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\AdminRole;
+use App\Vault\Authorization\Ability;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -21,6 +23,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property int $id
  * @property string $name
  * @property string $email
+ * @property AdminRole $role
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $two_factor_secret
@@ -48,6 +51,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return [
             'email_verified_at' => 'datetime',
             'deactivated_at' => 'datetime',
+            'role' => AdminRole::class,
             'password' => 'hashed',
         ];
     }
@@ -61,6 +65,25 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     protected function active(Builder $query): void
     {
         $query->whereNull('deactivated_at');
+    }
+
+    /**
+     * Limit a query to active admins with a role.
+     *
+     * @param  Builder<User>  $query
+     */
+    #[Scope]
+    protected function withRole(Builder $query, AdminRole $role): void
+    {
+        $query->where('role', $role->value);
+    }
+
+    /**
+     * Determine whether the admin holds a capability through their role. A deactivated admin holds none.
+     */
+    public function hasAbility(string $ability): bool
+    {
+        return ! $this->isDeactivated() && in_array($this->role, Ability::rolesFor($ability), true);
     }
 
     /**

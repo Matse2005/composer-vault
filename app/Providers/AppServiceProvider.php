@@ -5,7 +5,9 @@ namespace App\Providers;
 use App\Enums\AccessResult;
 use App\Http\ApiError;
 use App\Models\AccessToken;
+use App\Models\User;
 use App\Vault\Audit\AuditAuthenticationEvents;
+use App\Vault\Authorization\Ability;
 use App\Vault\Crypto\EnvKeyProvider;
 use App\Vault\Crypto\KeyProvider;
 use App\Vault\Health\AdminExistsCheck;
@@ -32,6 +34,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -66,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
         AdminIpList::parse(config('vault.admin.allowed_ips'));
 
         $this->configureDefaults();
+        $this->configureAuthorization();
         $this->configureRateLimiting();
         $this->configureAuditListeners();
         $this->configureHealthChecks();
@@ -111,6 +115,17 @@ class AppServiceProvider extends ServiceProvider
             'health.notifications.notifications' => [CheckFailedNotification::class => $channels],
             'health.notifications.enabled' => $channels !== [],
         ]);
+    }
+
+    /**
+     * Define one gate per capability. A role holds a capability only when Ability lists it, and a deactivated admin
+     * holds none.
+     */
+    protected function configureAuthorization(): void
+    {
+        foreach (Ability::all() as $ability) {
+            Gate::define($ability, fn (User $user): bool => $user->hasAbility($ability));
+        }
     }
 
     /**

@@ -38,29 +38,6 @@ it('refuses to deactivate yourself', function () {
         ->and(AuditEntry::query()->count())->toBe(0);
 });
 
-it('refuses to deactivate the last active admin', function () {
-    $other = User::factory()->create();
-    $other->forceFill(['deactivated_at' => now()])->save();
-    $onlyActive = User::factory()->create();
-    $this->actor->forceFill(['deactivated_at' => now()])->save();
-
-    expect(fn () => app(DeactivateAdmin::class)->handle($onlyActive, $this->actor))
-        ->toThrow(CannotDeactivateAdminException::class, 'last active admin');
-
-    expect($onlyActive->fresh()->deactivated_at)->toBeNull();
-});
-
-it('counts a deactivated admin as no admin when looking for the last one', function () {
-    $second = User::factory()->create();
-    $third = User::factory()->create();
-    app(DeactivateAdmin::class)->handle($third, $this->actor);
-
-    app(DeactivateAdmin::class)->handle($second, $this->actor);
-
-    expect(fn () => app(DeactivateAdmin::class)->handle($this->actor, $second))
-        ->toThrow(CannotDeactivateAdminException::class);
-});
-
 it('does nothing for an admin who is already deactivated', function () {
     $other = User::factory()->create();
     app(DeactivateAdmin::class)->handle($other, $this->actor);

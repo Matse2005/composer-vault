@@ -6,8 +6,10 @@ use App\Enums\AuditAction;
 use App\Exceptions\Vault\HostConflictException;
 use App\Models\Project;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use App\Vault\HostConflictGuard;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class LinkProjectToCredentials
 {
@@ -25,6 +27,8 @@ class LinkProjectToCredentials
      */
     public function handle(Project $project, array $credentialIds): void
     {
+        Gate::authorize(Ability::ManageVault);
+
         DB::transaction(function () use ($project, $credentialIds): void {
             $this->hostConflictGuard->assertCanLinkToCredentials($project, $credentialIds);
 

@@ -13,6 +13,10 @@ use Carbon\CarbonImmutable;
 use Database\Factories\AccessTokenFactory;
 use Illuminate\Support\Facades\DB;
 
+beforeEach(function () {
+    $this->actingAs(User::factory()->create());
+});
+
 function issueToken(array $projectIds = [], ?array $allowedIps = null, ?CarbonImmutable $expiresAt = null, ?User $creator = null, string $name = 'prod-web-01'): IssuedToken
 {
     return app(IssueAccessToken::class)->handle($name, $projectIds, $allowedIps, $expiresAt, $creator);

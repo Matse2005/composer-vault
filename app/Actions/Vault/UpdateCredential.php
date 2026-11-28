@@ -6,9 +6,11 @@ use App\Enums\AuditAction;
 use App\Exceptions\Vault\HostConflictException;
 use App\Models\Credential;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use App\Vault\HostConflictGuard;
 use App\Vault\HostName;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use SensitiveParameter;
 
 class UpdateCredential
@@ -36,6 +38,8 @@ class UpdateCredential
      */
     public function handle(Credential $credential, array $attributes, #[SensitiveParameter] ?string $newSecret = null, ?array $projectIds = null): Credential
     {
+        Gate::authorize(Ability::ManageVault);
+
         return DB::transaction(function () use ($credential, $attributes, $newSecret, $projectIds): Credential {
             if (isset($attributes['host'])) {
                 $this->hostConflictGuard->assertCanChangeHost($credential, HostName::normalize($attributes['host']));

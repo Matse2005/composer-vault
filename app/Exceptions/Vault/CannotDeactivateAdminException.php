@@ -10,9 +10,4 @@ class CannotDeactivateAdminException extends Exception
     {
         return new self(__('You cannot deactivate yourself.'));
     }
-
-    public static function lastActiveAdmin(): self
-    {
-        return new self(__('You cannot deactivate the last active admin.'));
-    }
 }

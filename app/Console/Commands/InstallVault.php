@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Actions\Vault\InviteAdmin;
+use App\Enums\AdminRole;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\InvalidVaultKeyException;
 use App\Exceptions\Vault\InvitationNotAllowedException;
@@ -162,7 +163,7 @@ class InstallVault extends Command
 
         DB::transaction(function () use ($name, $email, $plainPassword, $auditLogger): void {
             $user = new User(['name' => $name, 'email' => mb_strtolower(trim($email)), 'password' => $plainPassword]);
-            $user->forceFill(['email_verified_at' => now()])->save();
+            $user->forceFill(['email_verified_at' => now(), 'role' => AdminRole::Owner])->save();
 
             $auditLogger->record(AuditAction::VaultInstalled, null, ['version' => $this->appVersion(), 'admin_id' => $user->id]);
         });
@@ -176,7 +177,7 @@ class InstallVault extends Command
     private function inviteAdmin(InviteAdmin $inviteAdmin, AuditLogger $auditLogger): bool
     {
         try {
-            $issued = $inviteAdmin->handle((string) $this->option('email'), null);
+            $issued = $inviteAdmin->handleFirstOwner((string) $this->option('email'));
         } catch (InvitationNotAllowedException $exception) {
             $this->components->error($exception->getMessage());
 

@@ -8,7 +8,12 @@ use App\Exceptions\Vault\DecryptionFailedException;
 use App\Exceptions\Vault\HostConflictException;
 use App\Models\Credential;
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+
+beforeEach(function () {
+    $this->actingAs(User::factory()->create());
+});
 
 const PLAINTEXT_MARKER = 'plaintext-secret-marker-9f3a';
 

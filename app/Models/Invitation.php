@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AdminRole;
 use Database\Factories\InvitationFactory;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -15,6 +16,7 @@ use Illuminate\Support\Carbon;
  *
  * @property string $id
  * @property string $email
+ * @property AdminRole $role
  * @property string $token_hash
  * @property int|null $invited_by
  * @property Carbon $expires_at
@@ -37,6 +39,7 @@ class Invitation extends Model
     protected function casts(): array
     {
         return [
+            'role' => AdminRole::class,
             'expires_at' => 'datetime',
             'accepted_at' => 'datetime',
             'revoked_at' => 'datetime',

@@ -5,7 +5,9 @@ namespace App\Actions\Vault;
 use App\Enums\AuditAction;
 use App\Models\Invitation;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class RevokeInvitation
 {
@@ -17,6 +19,8 @@ class RevokeInvitation
      */
     public function handle(Invitation $invitation): void
     {
+        Gate::authorize(Ability::ManageAdmins);
+
         if ($invitation->accepted_at !== null || $invitation->revoked_at !== null) {
             return;
         }

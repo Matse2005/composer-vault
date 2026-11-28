@@ -53,9 +53,11 @@ new #[Title('Credentials')] class extends Component {
     <div class="flex flex-wrap items-center justify-between gap-4">
         <flux:heading size="xl" level="1">{{ __('Credentials') }}</flux:heading>
 
+        @can('vault.manage')
         <flux:button variant="primary" icon="plus" :href="route('credentials.create')" wire:navigate>
             {{ __('New credential') }}
         </flux:button>
+        @endcan
     </div>
 
     <div class="flex flex-wrap gap-4">
@@ -77,9 +79,11 @@ new #[Title('Credentials')] class extends Component {
             @else
                 <flux:text>{{ __('No credentials yet. A credential holds the key for one host, for example repo.magento.com.') }}</flux:text>
                 <div class="mt-4">
+                    @can('vault.manage')
                     <flux:button variant="primary" icon="plus" :href="route('credentials.create')" wire:navigate>
                         {{ __('New credential') }}
                     </flux:button>
+                    @endcan
                 </div>
             @endif
         </div>
@@ -100,7 +104,7 @@ new #[Title('Credentials')] class extends Component {
                     @foreach ($this->credentials as $credential)
                         <tr wire:key="credential-{{ $credential->id }}">
                             <td class="px-4 py-2">
-                                <flux:link :href="route('credentials.edit', $credential)" wire:navigate>{{ $credential->name }}</flux:link>
+                                @can('vault.manage')<flux:link :href="route('credentials.edit', $credential)" wire:navigate>{{ $credential->name }}</flux:link>@else{{ $credential->name }}@endcan
                             </td>
                             <td class="px-4 py-2">{{ $credential->type->label() }}</td>
                             <td class="px-4 py-2 font-mono text-xs">{{ $credential->host }}</td>
