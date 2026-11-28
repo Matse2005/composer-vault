@@ -37,6 +37,8 @@ enum AuditAction: string
     case BreakGlassChanged = 'break_glass_changed';
     case AdminReactivated = 'admin_reactivated';
     case AuditLogPruned = 'audit_log_pruned';
+    case PersonalDataExported = 'personal_data_exported';
+    case AdminPseudonymised = 'admin_pseudonymised';
     case BreakGlassLogin = 'break_glass_login';
 
     /**
