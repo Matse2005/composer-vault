@@ -8,6 +8,7 @@ use App\Models\AuditEntry;
 use App\Models\Credential;
 use App\Models\Project;
 use App\Rules\ProjectSlug;
+use App\Vault\Navigation\RecentProjects;
 use App\Vault\Settings\VaultSettings;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -35,6 +36,8 @@ new #[Title('Project')] class extends Component {
         $this->name = $project->name;
         $this->slug = $project->slug;
         $this->notes = (string) $project->notes;
+
+        app(RecentProjects::class)->record(auth()->user(), $project);
     }
 
     #[Computed]
