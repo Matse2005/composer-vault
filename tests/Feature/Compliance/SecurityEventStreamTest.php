@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\AuditAction;
+use App\Models\AccessToken;
 use App\Models\Project;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
@@ -53,9 +54,8 @@ it('writes every audit entry as one json line with the stream fields only', func
 });
 
 it('writes failed api accesses and not successful ones', function () {
-    [$token, $plain] = tokenWithPlain();
     $project = Project::factory()->create(['slug' => 'shop']);
-    $project->accessTokens()->attach($token);
+    [$token, $plain] = tokenWithPlain(AccessToken::factory()->for($project));
 
     $this->getJson('/api/v1/projects/shop/composer-auth', ['Authorization' => 'Bearer '.$plain]);
     expect(streamLines())->toBe([]);

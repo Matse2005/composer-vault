@@ -21,8 +21,7 @@ it('renders the navigation groups and links for an admin with a second factor', 
         ->assertSee('Administration')
         ->assertSee(route('dashboard'), false)
         ->assertSee(route('projects.index'), false)
-        ->assertSee(route('credentials.index'), false)
-        ->assertSee(route('tokens.index'), false)
+        ->assertDontSee('/credentials"', false)
         ->assertSee(route('logs.access'), false)
         ->assertSee(route('logs.audit'), false)
         ->assertSee(route('admins.index'), false);
@@ -63,7 +62,7 @@ it('keeps the admin pages behind the second factor', function () {
     $this->actingAs(User::factory()->create());
 
     // Each ticket adds the routes of its own pages to this list.
-    foreach (['dashboard', 'projects.index', 'projects.create', 'credentials.index', 'credentials.create', 'tokens.index', 'tokens.create', 'logs.access', 'logs.audit', 'admins.index', 'security-status'] as $name) {
+    foreach (['dashboard', 'projects.index', 'projects.create', 'logs.access', 'logs.audit', 'admins.index', 'security-status'] as $name) {
         $this->get(route($name))->assertRedirect(route('security.edit'));
     }
 });

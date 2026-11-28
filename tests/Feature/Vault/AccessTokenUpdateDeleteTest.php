@@ -13,20 +13,19 @@ beforeEach(function () {
     $this->actingAs(User::factory()->create());
 });
 
-it('updates name, projects, allowed ips and expiry and audits exactly the changes', function () {
-    [$first, $second] = Project::factory()->count(2)->create();
-    $token = AccessToken::factory()->withAllowedIps(['203.0.113.7'])->create(['name' => 'old-name']);
-    $token->projects()->attach($first);
+it('updates name, allowed ips and expiry, keeps the project and audits exactly the changes', function () {
+    $project = Project::factory()->create();
+    $token = AccessToken::factory()->for($project)->withAllowedIps(['203.0.113.7'])->create(['name' => 'old-name']);
     $expiresAt = CarbonImmutable::parse('2027-02-01 23:59:59', 'UTC');
 
-    app(UpdateAccessToken::class)->handle($token, 'new-name', [$second->id], ['10.0.0.0/8', '2001:db8::/32'], $expiresAt);
+    app(UpdateAccessToken::class)->handle($token, 'new-name', ['10.0.0.0/8', '2001:db8::/32'], $expiresAt);
 
     $fresh = $token->fresh();
 
     expect($fresh->name)->toBe('new-name')
         ->and($fresh->allowed_ips)->toBe(['10.0.0.0/8', '2001:db8::/32'])
         ->and($fresh->expires_at->toDateTimeString())->toBe('2027-02-01 23:59:59')
-        ->and($fresh->projects()->pluck('projects.id')->all())->toBe([$second->id]);
+        ->and($fresh->project_id)->toBe($project->id);
 
     $entry = AuditEntry::query()->sole();
 
@@ -36,7 +35,6 @@ it('updates name, projects, allowed ips and expiry and audits exactly the change
             'name' => ['old' => 'old-name', 'new' => 'new-name'],
             'allowed_ips' => ['old' => ['203.0.113.7'], 'new' => ['10.0.0.0/8', '2001:db8::/32']],
             'expires_at' => ['old' => null, 'new' => '2027-02-01T23:59:59Z'],
-            'project_ids' => ['added' => [$second->id], 'removed' => [$first->id]],
         ]);
 });
 
@@ -51,7 +49,7 @@ it('audits an update that changes nothing as an entry without changes', function
 it('treats an empty allowlist as no restriction', function () {
     $token = AccessToken::factory()->withAllowedIps(['203.0.113.7'])->create();
 
-    app(UpdateAccessToken::class)->handle($token, $token->name, [], [], null);
+    app(UpdateAccessToken::class)->handle($token, $token->name, [], null);
 
     expect($token->fresh()->allowed_ips)->toBeNull();
 });
@@ -59,7 +57,7 @@ it('treats an empty allowlist as no restriction', function () {
 it('rejects an invalid allowlist entry and changes nothing', function () {
     $token = AccessToken::factory()->create(['name' => 'keep']);
 
-    expect(fn () => app(UpdateAccessToken::class)->handle($token, 'changed', [], ['10.0.0.0/33'], null))
+    expect(fn () => app(UpdateAccessToken::class)->handle($token, 'changed', ['10.0.0.0/33'], null))
         ->toThrow(InvalidArgumentException::class);
 
     expect($token->fresh()->name)->toBe('keep')
@@ -70,15 +68,14 @@ it('never touches the token value or the revocation when updating', function () 
     $token = AccessToken::factory()->revoked()->create();
     $before = $token->fresh()->only(['token_prefix', 'token_hash', 'revoked_at']);
 
-    app(UpdateAccessToken::class)->handle($token, 'renamed', [], null, null);
+    app(UpdateAccessToken::class)->handle($token, 'renamed', null, null);
 
     expect($token->fresh()->only(['token_prefix', 'token_hash', 'revoked_at']))->toEqual($before);
 });
 
-it('deletes a token with its project links and audits it with a label', function () {
+it('deletes a token, keeps its project and audits it with a label', function () {
     $project = Project::factory()->create();
-    $token = AccessToken::factory()->create(['name' => 'prod-web-01', 'token_prefix' => 'AbCdEfGh']);
-    $token->projects()->attach($project);
+    $token = AccessToken::factory()->for($project)->create(['name' => 'prod-web-01', 'token_prefix' => 'AbCdEfGh']);
 
     app(DeleteAccessToken::class)->handle($token);
 

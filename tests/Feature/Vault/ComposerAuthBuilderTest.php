@@ -10,7 +10,10 @@ use Illuminate\Support\Facades\DB;
 function projectWith(Credential ...$credentials): Project
 {
     $project = Project::factory()->create();
-    $project->credentials()->attach(array_map(fn (Credential $credential) => $credential->id, $credentials));
+
+    foreach ($credentials as $credential) {
+        $credential->project()->associate($project)->save();
+    }
 
     return $project;
 }
@@ -68,15 +71,15 @@ it('gives each project its own credential for the same host', function () {
 it('never includes credentials of other projects', function () {
     $project = projectWith(Credential::factory()->ofType(CredentialType::Bearer)->forHost('mine.example.com')->withSecret('mine')->create());
     projectWith(Credential::factory()->ofType(CredentialType::Bearer)->forHost('other.example.com')->withSecret('other')->create());
-    Credential::factory()->ofType(CredentialType::Bearer)->forHost('unlinked.example.com')->withSecret('unlinked')->create();
+    Credential::factory()->ofType(CredentialType::Bearer)->forHost('unowned.example.com')->withSecret('unowned')->create();
 
     expect(app(ComposerAuthBuilder::class)->build($project))->toBe(['bearer' => ['mine.example.com' => 'mine']]);
 });
 
 it('fails as a whole when one secret cannot be decrypted', function () {
-    $good = Credential::factory()->forHost('good.example.com')->withSecret('good-secret')->create();
-    $bad = Credential::factory()->forHost('bad.example.com')->withSecret('bad-secret')->create();
-    $project = projectWith($good, $bad);
+    $project = Project::factory()->create();
+    Credential::factory()->for($project)->forHost('good.example.com')->withSecret('good-secret')->create();
+    $bad = Credential::factory()->for($project)->forHost('bad.example.com')->withSecret('bad-secret')->create();
     DB::table('credentials')->where('id', $bad->id)->update(['secret_ciphertext' => base64_encode('corrupted')]);
 
     app(ComposerAuthBuilder::class)->build($project);

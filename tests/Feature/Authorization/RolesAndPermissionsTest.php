@@ -58,8 +58,6 @@ it('sends a role without the permission to a 403 on each admin page', function (
     $this->get(route($route))->assertOk();
 })->with([
     'projects' => ['projects.index', Ability::ProjectsView],
-    'credentials' => ['credentials.index', Ability::CredentialsView],
-    'tokens' => ['tokens.index', Ability::TokensView],
     'access log' => ['logs.access', Ability::LogsView],
     'audit log' => ['logs.audit', Ability::LogsView],
     'security status' => ['security-status', Ability::LogsView],

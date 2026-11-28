@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('credentials', function (Blueprint $table) {
             $table->ulid('id')->primary();
+            $table->foreignUlid('project_id')->constrained()->cascadeOnDelete();
             $table->string('name', 100);
             $table->string('type', 32);
             $table->string('host', 255);
@@ -23,6 +24,8 @@ return new class extends Migration
             $table->timestamp('secret_changed_at');
             $table->text('notes')->nullable();
             $table->timestamps();
+
+            $table->unique(['project_id', 'host']);
         });
     }
 

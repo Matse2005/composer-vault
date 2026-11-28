@@ -11,6 +11,7 @@ use App\Actions\Vault\ReactivateAdmin;
 use App\Actions\Vault\SaveIncident;
 use App\Actions\Vault\SetBreakGlass;
 use App\Enums\AdminRole;
+use App\Models\AccessToken;
 use App\Models\Project;
 use App\Models\User;
 use App\Vault\Settings\VaultSettings;
@@ -53,8 +54,7 @@ it('keeps every name and email address out of the audit log and the access log',
 
     // API traffic with failures, as an access log row is written for each.
     $project = Project::factory()->create(['slug' => 'shop']);
-    [$token, $plain] = tokenWithPlain();
-    $project->accessTokens()->attach($token);
+    [$token, $plain] = tokenWithPlain(AccessToken::factory()->for($project));
     $this->getJson('/api/v1/projects/shop/composer-auth', ['Authorization' => 'Bearer '.$plain])->assertOk();
     $this->getJson('/api/v1/projects/shop/composer-auth', ['Authorization' => 'Bearer cv_'.str_repeat('q', 40)]);
 

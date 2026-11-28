@@ -17,20 +17,20 @@ beforeEach(function () {
 
 const PLAINTEXT_MARKER = 'plaintext-secret-marker-9f3a';
 
-function createCredentialWithSecret(string $secret = PLAINTEXT_MARKER, array $attributes = [], array $projectIds = []): Credential
+function createCredentialWithSecret(string $secret = PLAINTEXT_MARKER, array $attributes = [], ?Project $project = null): Credential
 {
-    return app(CreateCredential::class)->handle(array_merge([
+    return app(CreateCredential::class)->handle($project ?? Project::factory()->create(), array_merge([
         'name' => 'Magento',
         'type' => CredentialType::HttpBasic,
         'host' => 'repo.magento.com',
         'username' => 'public-key',
-    ], $attributes), $secret, $projectIds);
+    ], $attributes), $secret);
 }
 
 it('creates a credential whose secret can be revealed', function () {
     $project = Project::factory()->create();
 
-    $credential = createCredentialWithSecret(projectIds: [$project->id]);
+    $credential = createCredentialWithSecret(project: $project);
 
     expect($credential->exists)->toBeTrue()
         ->and($credential->getKey())->toBeString()->toHaveLength(26)
@@ -38,7 +38,7 @@ it('creates a credential whose secret can be revealed', function () {
         ->and($credential->secret_changed_at)->not->toBeNull()
         ->and($credential->revealSecret())->toBe(PLAINTEXT_MARKER)
         ->and(Credential::find($credential->getKey())->revealSecret())->toBe(PLAINTEXT_MARKER)
-        ->and($credential->projects()->pluck('projects.id')->all())->toBe([$project->id]);
+        ->and($credential->project_id)->toBe($project->id);
 });
 
 it('stores no plaintext in any column of the database', function () {
@@ -55,9 +55,9 @@ it('stores no plaintext in any column of the database', function () {
 
 it('creates nothing when the host rule is violated', function () {
     $project = Project::factory()->create();
-    $project->credentials()->attach(Credential::factory()->forHost('repo.magento.com')->create());
+    Credential::factory()->for($project)->forHost('repo.magento.com')->create();
 
-    expect(fn () => createCredentialWithSecret(projectIds: [$project->id]))->toThrow(HostConflictException::class);
+    expect(fn () => createCredentialWithSecret(project: $project))->toThrow(HostConflictException::class);
 
     expect(Credential::query()->count())->toBe(1);
 });
@@ -129,9 +129,8 @@ it('replaces the secret and its change date when a new secret is given', functio
 
 it('still checks the host rule when updating with a secret', function () {
     $project = Project::factory()->create();
-    $project->credentials()->attach(Credential::factory()->forHost('repo.magento.com')->create());
-    $credential = createCredentialWithSecret('original secret', ['host' => 'github.com']);
-    $project->credentials()->attach($credential);
+    Credential::factory()->for($project)->forHost('repo.magento.com')->create();
+    $credential = createCredentialWithSecret('original secret', ['host' => 'github.com'], $project);
 
     expect(fn () => app(UpdateCredential::class)->handle($credential, ['host' => 'repo.magento.com'], 'new secret'))
         ->toThrow(HostConflictException::class);
@@ -162,14 +161,13 @@ it('fails to reveal when the data keys are swapped between two rows', function (
         ->and(fn () => $second->fresh()->revealSecret())->toThrow(DecryptionFailedException::class);
 });
 
-it('deletes a credential and its project links', function () {
+it('deletes a credential and keeps its project', function () {
     $project = Project::factory()->create();
-    $credential = createCredentialWithSecret(projectIds: [$project->id]);
+    $credential = createCredentialWithSecret(project: $project);
 
     app(DeleteCredential::class)->handle($credential);
 
     expect(Credential::query()->count())->toBe(0)
-        ->and(DB::table('credential_project')->count())->toBe(0)
         ->and(Project::query()->count())->toBe(1);
 });
 

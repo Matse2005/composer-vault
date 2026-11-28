@@ -17,9 +17,9 @@ beforeEach(function () {
     $this->actingAs(User::factory()->create());
 });
 
-function issueToken(array $projectIds = [], ?array $allowedIps = null, ?CarbonImmutable $expiresAt = null, ?User $creator = null, string $name = 'prod-web-01'): IssuedToken
+function issueToken(?Project $project = null, ?array $allowedIps = null, ?CarbonImmutable $expiresAt = null, ?User $creator = null, string $name = 'prod-web-01'): IssuedToken
 {
-    return app(IssueAccessToken::class)->handle($name, $projectIds, $allowedIps, $expiresAt, $creator);
+    return app(IssueAccessToken::class)->handle($project ?? Project::factory()->create(), $name, $allowedIps, $expiresAt, $creator);
 }
 
 /**
@@ -41,12 +41,12 @@ function fakeTokenIssuer(array $plainTokens): void
     });
 }
 
-it('issues a token with the settings and project links', function () {
-    $projects = Project::factory()->count(2)->create();
+it('issues a token with the settings and its project', function () {
+    $project = Project::factory()->create();
     $admin = User::factory()->create();
     $expiresAt = CarbonImmutable::now()->addMonth();
 
-    $issued = issueToken($projects->pluck('id')->all(), ['203.0.113.7', '10.0.0.0/8'], $expiresAt, $admin);
+    $issued = issueToken($project, ['203.0.113.7', '10.0.0.0/8'], $expiresAt, $admin);
     $token = $issued->token->fresh();
 
     expect($issued->plainToken)->toMatch('/^cv_[A-Za-z0-9]{40}$/')
@@ -57,8 +57,7 @@ it('issues a token with the settings and project links', function () {
         ->and($token->expires_at->toDateTimeString())->toBe($expiresAt->toDateTimeString())
         ->and($token->created_by)->toBe($admin->id)
         ->and($token->revoked_at)->toBeNull()
-        ->and($token->projects()->pluck('projects.id')->sort()->values()->all())
-        ->toBe($projects->pluck('id')->sort()->values()->all());
+        ->and($token->project_id)->toBe($project->id);
 });
 
 it('stores an empty allowlist as no restriction', function () {
@@ -119,7 +118,7 @@ it('gives up after three prefix collisions and creates nothing', function () {
 
 it('regenerates the token in place and invalidates the old value', function () {
     $project = Project::factory()->create();
-    $issued = issueToken([$project->id], ['203.0.113.7'], CarbonImmutable::now()->addWeek());
+    $issued = issueToken($project, ['203.0.113.7'], CarbonImmutable::now()->addWeek());
     $token = $issued->token;
     $token->forceFill(['last_used_at' => now(), 'last_used_ip' => '203.0.113.7'])->save();
     $before = $token->fresh();
@@ -137,7 +136,7 @@ it('regenerates the token in place and invalidates the old value', function () {
         ->and($after->name)->toBe($before->name)
         ->and($after->allowed_ips)->toBe(['203.0.113.7'])
         ->and($after->expires_at->toDateTimeString())->toBe($before->expires_at->toDateTimeString())
-        ->and($after->projects()->pluck('projects.id')->all())->toBe([$project->id])
+        ->and($after->project_id)->toBe($project->id)
         ->and($after->revoked_at)->toBeNull()
         ->and($after->last_used_at)->toBeNull()
         ->and($after->last_used_ip)->toBeNull();

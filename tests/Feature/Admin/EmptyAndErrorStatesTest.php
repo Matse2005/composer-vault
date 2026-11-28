@@ -13,8 +13,6 @@ it('shows an empty state with the primary action on every index page', function 
     Livewire::test($page)->assertSee($message)->assertSee(route($createRoute), false);
 })->with([
     'projects' => ['pages::projects.index', 'No projects yet', 'projects.create'],
-    'credentials' => ['pages::credentials.index', 'No credentials yet', 'credentials.create'],
-    'tokens' => ['pages::tokens.index', 'No tokens yet', 'tokens.create'],
 ]);
 
 it('shows an empty state on the log pages', function (string $page, string $message) {

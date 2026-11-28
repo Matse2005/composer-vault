@@ -7,6 +7,7 @@ use App\Actions\Vault\UpdateAccessToken;
 use App\Livewire\Concerns\HasTokenForm;
 use App\Models\AccessLog;
 use App\Models\AccessToken;
+use App\Models\Project;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
@@ -24,11 +25,10 @@ new #[Title('Token')] class extends Component {
     #[Locked]
     public ?string $plainToken = null;
 
-    public function mount(AccessToken $accessToken): void
+    public function mount(Project $project, AccessToken $accessToken): void
     {
         $this->tokenId = $accessToken->id;
         $this->name = $accessToken->name;
-        $this->projectIds = $accessToken->projects()->pluck('projects.id')->all();
         $this->allowedIps = $this->allowlistText($accessToken->allowed_ips);
         $this->expiresOn = $accessToken->expires_at?->toDateString() ?? '';
     }
@@ -36,7 +36,7 @@ new #[Title('Token')] class extends Component {
     #[Computed]
     public function token(): AccessToken
     {
-        return AccessToken::query()->findOrFail($this->tokenId);
+        return AccessToken::query()->with('project')->findOrFail($this->tokenId);
     }
 
     /**
@@ -61,14 +61,13 @@ new #[Title('Token')] class extends Component {
         $updateAccessToken->handle(
             $this->token,
             $validated['name'],
-            $validated['projectIds'],
             $validated['allowedIps'],
             $validated['expiresAt'],
         );
 
         session()->flash('flash', __('Token saved.'));
 
-        $this->redirectRoute('tokens.show', $this->token, navigate: true);
+        $this->redirectRoute('tokens.show', [$this->token->project_id, $this->token], navigate: true);
     }
 
     public function regenerate(RegenerateAccessToken $regenerateAccessToken): void
@@ -107,21 +106,24 @@ new #[Title('Token')] class extends Component {
         unset($this->token);
         session()->flash('flash', __('Token revoked.'));
 
-        $this->redirectRoute('tokens.show', $this->token, navigate: true);
+        $this->redirectRoute('tokens.show', [$this->token->project_id, $this->token], navigate: true);
     }
 
     public function delete(DeleteAccessToken $deleteAccessToken): void
     {
+        $projectId = $this->token->project_id;
+
         $deleteAccessToken->handle($this->token);
 
         session()->flash('flash', __('Token deleted.'));
 
-        $this->redirectRoute('tokens.index', navigate: true);
+        $this->redirectRoute('projects.show', $projectId, navigate: true);
     }
 }; ?>
 
 <section class="w-full max-w-3xl space-y-10">
     <div class="space-y-1">
+        <flux:text><flux:link :href="route('projects.show', $this->token->project)" wire:navigate>{{ $this->token->project->name }}</flux:link></flux:text>
         <flux:heading size="xl" level="1">{{ $this->token->name }}</flux:heading>
         <flux:text>
             <span class="font-mono text-xs">cv_{{ $this->token->token_prefix }}...</span>
@@ -140,7 +142,7 @@ new #[Title('Token')] class extends Component {
     <form wire:submit="save" class="space-y-6">
         <flux:heading size="lg" level="2">{{ __('Settings') }}</flux:heading>
 
-        <x-token-fields :projects="$this->projects" />
+        <x-token-fields />
 
         <flux:button type="submit" variant="primary">{{ __('Save') }}</flux:button>
     </form>

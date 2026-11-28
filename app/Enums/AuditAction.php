@@ -11,7 +11,7 @@ enum AuditAction: string
     case CredentialUpdated = 'credential_updated';
     case CredentialSecretChanged = 'credential_secret_changed';
     case CredentialDeleted = 'credential_deleted';
-    case CredentialLinksChanged = 'credential_links_changed';
+    case CredentialMoved = 'credential_moved';
     case TokenIssued = 'token_issued';
     case TokenUpdated = 'token_updated';
     case TokenRegenerated = 'token_regenerated';

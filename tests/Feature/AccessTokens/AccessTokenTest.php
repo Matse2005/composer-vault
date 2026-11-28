@@ -85,16 +85,16 @@ it('enforces a unique token prefix in the database', function () {
     AccessToken::factory()->create(['token_prefix' => 'cv_abcde']);
 })->throws(UniqueConstraintViolationException::class);
 
-it('links tokens to projects and removes the links with either side', function () {
-    $token = AccessToken::factory()->create();
+it('belongs to one project and goes with it when the project is deleted', function () {
     $project = Project::factory()->create();
-    $token->projects()->attach($project);
+    $token = AccessToken::factory()->for($project)->create();
 
-    expect($project->accessTokens()->pluck('access_tokens.id')->all())->toBe([$token->id]);
+    expect($token->project->is($project))->toBeTrue()
+        ->and($project->accessTokens()->pluck('access_tokens.id')->all())->toBe([$token->id]);
 
     $project->delete();
 
-    expect($token->projects()->count())->toBe(0);
+    expect(AccessToken::query()->whereKey($token->id)->exists())->toBeFalse();
 });
 
 it('keeps the token and clears the creator when the admin is deleted', function () {

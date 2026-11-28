@@ -129,8 +129,8 @@ new #[Title('Audit log')] class extends Component {
 
         return match (true) {
             $subject instanceof Project && $canProjects => route('projects.show', $subject),
-            $subject instanceof Credential && $canCredentials => route('credentials.edit', $subject),
-            $subject instanceof AccessToken && $canTokens => route('tokens.show', $subject),
+            $subject instanceof Credential && $canCredentials => route('credentials.edit', [$subject->project_id, $subject]),
+            $subject instanceof AccessToken && $canTokens => route('tokens.show', [$subject->project_id, $subject]),
             ($subject instanceof Invitation || $subject instanceof User) && $canManageAdmins => route('admins.index'),
             default => null,
         };

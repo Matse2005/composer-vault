@@ -25,12 +25,9 @@ beforeEach(function () {
 it('revokes every token of one project and no other', function () {
     $project = Project::factory()->create();
     $other = Project::factory()->create();
-    $mine = AccessToken::factory()->count(2)->create();
-    $project->accessTokens()->attach($mine->pluck('id'));
-    $theirs = AccessToken::factory()->create();
-    $other->accessTokens()->attach($theirs);
-    $already = AccessToken::factory()->revoked()->create();
-    $project->accessTokens()->attach($already);
+    $mine = AccessToken::factory()->for($project)->count(2)->create();
+    $theirs = AccessToken::factory()->for($other)->create();
+    AccessToken::factory()->for($project)->revoked()->create();
 
     $count = app(RevokeTokensInBulk::class)->handle($this->owner, $project);
 
@@ -110,8 +107,7 @@ it('needs the typed word for each emergency action from the page', function () {
 
 it('runs the other emergency actions from the page with their word', function () {
     $project = Project::factory()->create();
-    $token = AccessToken::factory()->create();
-    $project->accessTokens()->attach($token);
+    $token = AccessToken::factory()->for($project)->create();
     $this->actingAs($this->owner);
 
     Livewire::test('pages::incidents')->set('projectId', $project->id)->set('confirmation', 'REVOKE')->call('emergency', 'revoke-project');
