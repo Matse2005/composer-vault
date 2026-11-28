@@ -135,7 +135,7 @@ it('does not reveal the state of a token when the secret part is wrong', functio
 it('refuses the old value after regeneration and accepts the new one', function () {
     [$token, $oldPlain] = tokenWithPlain();
 
-    $new = app(RegenerateAccessToken::class)->handle($token);
+    $new = asOwner(fn () => app(RegenerateAccessToken::class)->handle($token));
 
     expect(authenticate($oldPlain)->result)->toBe(AccessResult::UnknownToken)
         ->and(authenticate($new->plainToken)->result)->toBe(AccessResult::Ok);

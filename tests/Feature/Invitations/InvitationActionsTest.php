@@ -144,7 +144,7 @@ it('allows a new invitation after the previous one expired, was revoked or was a
     $first = invite('new.admin@example.com');
     $first->invitation->forceFill(['expires_at' => now()->subMinute()])->save();
     $second = invite('new.admin@example.com');
-    app(RevokeInvitation::class)->handle($second->invitation);
+    asOwner(fn () => app(RevokeInvitation::class)->handle($second->invitation));
 
     expect(invite('new.admin@example.com')->invitation->isUsable())->toBeTrue()
         ->and(Invitation::query()->count())->toBe(3);
@@ -160,10 +160,10 @@ it('knows when an invitation is usable', function () {
 it('revokes an invitation once, keeps the first time and audits it exactly once', function () {
     $issued = invite();
 
-    app(RevokeInvitation::class)->handle($issued->invitation);
+    asOwner(fn () => app(RevokeInvitation::class)->handle($issued->invitation));
     $revokedAt = $issued->invitation->fresh()->revoked_at;
     $this->travel(1)->hours();
-    app(RevokeInvitation::class)->handle($issued->invitation->fresh());
+    asOwner(fn () => app(RevokeInvitation::class)->handle($issued->invitation->fresh()));
 
     $revocations = AuditEntry::query()->where('event', 'invitation_revoked')->get();
 
@@ -176,7 +176,7 @@ it('revokes an invitation once, keeps the first time and audits it exactly once'
 it('does not revoke an accepted invitation', function () {
     $invitation = Invitation::factory()->accepted()->create();
 
-    app(RevokeInvitation::class)->handle($invitation);
+    asOwner(fn () => app(RevokeInvitation::class)->handle($invitation));
 
     expect($invitation->fresh()->revoked_at)->toBeNull();
 });
@@ -236,7 +236,7 @@ it('gives the same exception and message for every invalid state', function (Clo
     }],
     'revoked' => [function () {
         $issued = invite();
-        app(RevokeInvitation::class)->handle($issued->invitation);
+        asOwner(fn () => app(RevokeInvitation::class)->handle($issued->invitation));
 
         return plainTokenOf($issued);
     }],

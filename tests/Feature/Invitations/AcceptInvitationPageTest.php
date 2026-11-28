@@ -92,7 +92,7 @@ it('shows the identical page with a 404 for every invalid state', function () {
     [$expired, $expiredToken] = invitationWithToken('expired@example.com');
     $expired->forceFill(['expires_at' => now()->subMinute()])->save();
     [$revoked, $revokedToken] = invitationWithToken('revoked@example.com');
-    app(RevokeInvitation::class)->handle($revoked);
+    asOwner(fn () => app(RevokeInvitation::class)->handle($revoked));
     [$accepted, $acceptedToken] = invitationWithToken('accepted@example.com');
     $accepted->forceFill(['accepted_at' => now()])->save();
 
@@ -123,7 +123,7 @@ it('refuses an accept action on an invitation that became invalid and creates no
     [$invitation, $token] = invitationWithToken();
     $component = Livewire::test('pages::auth.accept-invitation', ['token' => $token]);
 
-    app(RevokeInvitation::class)->handle($invitation);
+    asOwner(fn () => app(RevokeInvitation::class)->handle($invitation));
 
     $component->set('name', 'New Admin')
         ->set('password', 'a-Strong-pass-123')

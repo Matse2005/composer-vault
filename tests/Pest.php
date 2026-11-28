@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AccessToken;
+use App\Models\User;
 use Database\Factories\AccessTokenFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Vite;
@@ -82,5 +83,33 @@ function assertComposerAuthShape(array $body): void
                 expect($entry)->toBeString()->not->toBeEmpty();
             }
         }
+    }
+}
+
+/**
+ * Run a callback as a temporary Owner who is logged in, then log out and remove them again. For tests that call an
+ * action outside a request but must keep the number of users as it is.
+ *
+ * @template T
+ *
+ * @param  callable(): T  $callback
+ * @return T
+ */
+function asOwner(callable $callback): mixed
+{
+    $previous = auth()->user();
+    $owner = User::factory()->create();
+    test()->actingAs($owner);
+
+    try {
+        return $callback();
+    } finally {
+        auth()->forgetGuards();
+
+        if ($previous !== null) {
+            test()->actingAs($previous);
+        }
+
+        $owner->delete();
     }
 }
