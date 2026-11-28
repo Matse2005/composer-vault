@@ -14,7 +14,7 @@ class PersonalDataController extends Controller
      */
     public function __invoke(Request $request, User $user, ExportAdminPersonalData $export): Response
     {
-        $data = $export->handle($user, $request->user());
+        $data = $export->handle($user, $request->user() ?? abort(401));
 
         return response()->json($data, 200, [
             'Content-Disposition' => 'attachment; filename="personal-data-'.$user->getKey().'.json"',

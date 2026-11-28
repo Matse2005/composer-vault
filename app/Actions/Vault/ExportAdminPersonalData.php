@@ -62,7 +62,7 @@ class ExportAdminPersonalData
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * @return list<array{ip: mixed, user_agent: mixed, last_activity: string|null}>
      */
     private function sessions(User $subject): array
     {
@@ -70,12 +70,14 @@ class ExportAdminPersonalData
             return [];
         }
 
-        return DB::table(config('session.table', 'sessions'))
+        $rows = DB::table(config('session.table', 'sessions'))
             ->where('user_id', $subject->getKey())
             ->orderBy('last_activity')
             ->get(['ip_address', 'user_agent', 'last_activity'])
             ->map(fn ($row): array => ['ip' => $row->ip_address, 'user_agent' => $row->user_agent, 'last_activity' => $this->time(Carbon::createFromTimestampUTC((int) $row->last_activity))])
             ->all();
+
+        return array_values($rows);
     }
 
     private function time(?DateTimeInterface $time): ?string
