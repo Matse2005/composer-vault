@@ -49,5 +49,6 @@ Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
         Route::livewire('admin-settings/sso', 'pages::settings.sso')->name('settings.sso');
         Route::livewire('admin-settings/access', 'pages::settings.access')->name('settings.access');
         Route::livewire('admin-settings/retention', 'pages::settings.retention')->name('settings.retention');
+        Route::livewire('admin-settings/notifications', 'pages::settings.notifications')->name('settings.notifications');
     });
 });

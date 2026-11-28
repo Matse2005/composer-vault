@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property string $token_prefix
  * @property string $token_hash
  * @property array<int, string>|null $allowed_ips
+ * @property array<int, string>|null $recent_ips
  * @property Carbon|null $expires_at
  * @property Carbon|null $revoked_at
  * @property Carbon|null $last_used_at
@@ -42,6 +43,7 @@ class AccessToken extends Model
     {
         return [
             'allowed_ips' => 'array',
+            'recent_ips' => 'array',
             'expires_at' => 'datetime',
             'revoked_at' => 'datetime',
             'last_used_at' => 'datetime',

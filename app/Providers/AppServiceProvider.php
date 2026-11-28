@@ -8,6 +8,7 @@ use App\Models\AccessToken;
 use App\Models\User;
 use App\Vault\Audit\AuditAuthenticationEvents;
 use App\Vault\Authorization\Ability;
+use App\Vault\Compliance\NotificationTargets;
 use App\Vault\Crypto\EnvKeyProvider;
 use App\Vault\Crypto\KeyProvider;
 use App\Vault\Health\AdminExistsCheck;
@@ -19,7 +20,6 @@ use App\Vault\Health\KeyVersionsCheck;
 use App\Vault\Health\SecondFactorCheck;
 use App\Vault\Health\SecurityLogChannelCheck;
 use App\Vault\Health\SessionCheck;
-use App\Vault\Health\SlackWebhookChannel;
 use App\Vault\Health\SodiumCheck;
 use App\Vault\Health\SsoConfigurationCheck;
 use App\Vault\Health\TrustedProxiesCheck;
@@ -51,7 +51,6 @@ use Spatie\Health\Checks\Checks\DebugModeCheck;
 use Spatie\Health\Checks\Checks\EnvironmentCheck;
 use Spatie\Health\Checks\Checks\ScheduleCheck;
 use Spatie\Health\Facades\Health;
-use Spatie\Health\Notifications\CheckFailedNotification;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -105,22 +104,9 @@ class AppServiceProvider extends ServiceProvider
             SecurityLogChannelCheck::new(),
         ]);
 
-        $channels = [];
-
-        if (filled(config('vault.health.notify_mail'))) {
-            $channels[] = 'mail';
-            config(['health.notifications.mail.to' => config('vault.health.notify_mail')]);
+        if ($this->app->runningInConsole()) {
+            NotificationTargets::applyToHealthConfig();
         }
-
-        if (filled(config('vault.health.notify_slack_webhook'))) {
-            $channels[] = SlackWebhookChannel::class;
-            config(['health.notifications.slack.webhook_url' => config('vault.health.notify_slack_webhook')]);
-        }
-
-        config([
-            'health.notifications.notifications' => [CheckFailedNotification::class => $channels],
-            'health.notifications.enabled' => $channels !== [],
-        ]);
     }
 
     /**

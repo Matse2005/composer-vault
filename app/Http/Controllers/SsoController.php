@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\SsoRejectedException;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Compliance\SecurityAlerts;
 use App\Vault\Sso\SsoSignIn;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -66,6 +67,7 @@ class SsoController extends Controller
     private function reject(SsoRejectedException $exception, AuditLogger $auditLogger): Response
     {
         $auditLogger->record(AuditAction::SsoLoginRejected, null, ['reason' => $exception->reason], null);
+        app(SecurityAlerts::class)->ssoRejection();
 
         return response()->view('pages::auth.sso-failed', status: 403);
     }

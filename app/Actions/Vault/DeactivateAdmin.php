@@ -2,6 +2,7 @@
 
 namespace App\Actions\Vault;
 
+use App\Enums\AdminRole;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\CannotDeactivateAdminException;
 use App\Exceptions\Vault\LastOwnerException;
@@ -10,6 +11,7 @@ use App\Models\User;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\Ability;
 use App\Vault\Authorization\OwnerGuard;
+use App\Vault\Compliance\SecurityAlerts;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -61,6 +63,7 @@ class DeactivateAdmin
             }
 
             OwnerGuard::assertAnotherActiveOwnerExists($admin);
+            $wasOwner = $admin->role === AdminRole::Owner;
 
             $admin->forceFill([
                 'deactivated_at' => now(),
@@ -79,6 +82,10 @@ class DeactivateAdmin
             }
 
             $this->auditLogger->record(AuditAction::AdminDeactivated, $admin, [...$changes, 'revoked_invitations' => $revoked], $actor);
+
+            if ($wasOwner) {
+                DB::afterCommit(fn () => app(SecurityAlerts::class)->ownerChange($admin, 'An Owner was deactivated', $actor));
+            }
         });
     }
 }
