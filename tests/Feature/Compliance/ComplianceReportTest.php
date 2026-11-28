@@ -144,7 +144,7 @@ it('prints the same controls on the command, as json and on the page', function 
     Artisan::call('vault:compliance-report', ['--json' => true]);
     $json = json_decode(Artisan::output(), true);
 
-    expect(array_keys($json))->toBe(['disclaimer', 'version', 'controls'])
+    expect(array_keys($json))->toBe(['disclaimer', 'version', 'controls', 'settings'])
         ->and($json['disclaimer'])->toBe(ComplianceReport::DISCLAIMER)
         ->and(array_keys($json['controls'][0]))->toBe(['control', 'status', 'evidence', 'supports'])
         ->and(collect($json['controls'])->pluck('control')->all())->toBe($names)

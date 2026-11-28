@@ -31,7 +31,7 @@ Everything is set on the Single sign-on page of the dashboard (Owner only). A va
 | Scopes | `VAULT_SSO_SCOPES` | `openid email profile` |
 | Button label | `VAULT_SSO_BUTTON_LABEL` | `Sign in with SSO` |
 | Groups claim | `VAULT_SSO_GROUPS_CLAIM` | `groups` |
-| Owner, Admin and Auditor groups | `VAULT_SSO_OWNER_GROUPS`, `VAULT_SSO_ADMIN_GROUPS`, `VAULT_SSO_AUDITOR_GROUPS` | none |
+| Identity provider groups per role (on the Roles page) | `VAULT_SSO_OWNER_GROUPS`, `VAULT_SSO_ADMIN_GROUPS`, `VAULT_SSO_AUDITOR_GROUPS` for the system roles | none |
 | Allowed email domains | `VAULT_SSO_ALLOWED_DOMAINS` | any |
 | Create an admin on the first sign-in | `VAULT_SSO_AUTO_PROVISION` | off |
 | Trust the multi-factor sign-in of the provider | `VAULT_SSO_TRUST_IDP_MFA` | off |
@@ -61,7 +61,7 @@ With enforcement on, the password login, the passkey login and the password rese
 
 A break-glass account is an Owner marked as such on the Admins page. At most two exist. It keeps the password and the local second factor, so the company can get in when the identity provider is down. Every local break-glass login is audited and alerted to the other Owners. The health checks warn when single sign-on is enforced and there is no break-glass account, or more than two.
 
-Before turning enforcement on, make sure at least one break-glass Owner has a working password and second factor. If you lose access, the console command `vault:settings` of a later release is meant to reset enforcement; until then, set `VAULT_SSO_ENFORCE=false` in the environment, which overrides the dashboard value.
+Before turning enforcement on, make sure at least one break-glass Owner has a working password and second factor. If you lose access, an operator with shell access runs `php artisan vault:settings reset --lockout`, which turns enforcement off (see [settings](../settings.md)). Setting `VAULT_SSO_ENFORCE=false` in the environment also works, because it overrides the dashboard value.
 
 ## Leavers
 

@@ -12,6 +12,14 @@ new #[Title('Compliance report')] class extends Component {
     {
         return app(ComplianceReport::class)->controls();
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function sources(): array
+    {
+        return app(ComplianceReport::class)->settingSources();
+    }
 }; ?>
 
 <section class="w-full max-w-6xl space-y-6">
@@ -47,5 +55,15 @@ new #[Title('Compliance report')] class extends Component {
                 @endforeach
             </tbody>
         </table>
+    </div>
+
+    <div class="space-y-2">
+        <flux:heading size="lg" level="2">{{ __('Where the settings come from') }}</flux:heading>
+        <flux:text class="text-xs">{{ __('For each security-relevant setting: set by the environment, by the dashboard, or at its default.') }}</flux:text>
+        <ul class="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+            @foreach ($this->sources() as $key => $source)
+                <li wire:key="source-{{ $key }}" class="flex justify-between border-b border-zinc-200 py-1 dark:border-zinc-700"><span class="font-mono text-xs">{{ $key }}</span><span>{{ __($source) }}</span></li>
+            @endforeach
+        </ul>
     </div>
 </section>

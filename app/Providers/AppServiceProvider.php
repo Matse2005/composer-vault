@@ -22,6 +22,7 @@ use App\Vault\Health\KeyVersionsCheck;
 use App\Vault\Health\SecondFactorCheck;
 use App\Vault\Health\SecurityLogChannelCheck;
 use App\Vault\Health\SessionCheck;
+use App\Vault\Health\SettingsCheck;
 use App\Vault\Health\SodiumCheck;
 use App\Vault\Health\SsoConfigurationCheck;
 use App\Vault\Health\TrustedProxiesCheck;
@@ -110,6 +111,7 @@ class AppServiceProvider extends ServiceProvider
             SsoConfigurationCheck::new(),
             SecurityLogChannelCheck::new(),
             AccessReviewCheck::new(),
+            SettingsCheck::new(),
         ]);
 
         if ($this->app->runningInConsole()) {

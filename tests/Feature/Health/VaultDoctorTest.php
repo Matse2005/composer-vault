@@ -82,13 +82,12 @@ it('prints the json shape', function () {
     Artisan::call('vault:doctor', ['--json' => true]);
     $json = json_decode(Artisan::output(), true, flags: JSON_THROW_ON_ERROR);
 
-    expect($json)->toBe([
-        'status' => 'warn',
-        'checks' => [
+    expect(array_keys($json))->toBe(['status', 'settings', 'checks'])
+        ->and($json['status'])->toBe('warn')
+        ->and($json['checks'])->toBe([
             ['name' => 'check0', 'status' => 'ok', 'summary' => 'check0 summary', 'fix' => ''],
             ['name' => 'check1', 'status' => 'warning', 'summary' => 'check1 summary', 'fix' => 'Fix 1'],
-        ],
-    ]);
+        ]);
 });
 
 it('reports fail in the json when a check failed', function () {

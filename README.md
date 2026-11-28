@@ -35,7 +35,7 @@ See [docs/deploy/vitodeploy.md](docs/deploy/vitodeploy.md).
 
 1. Clone the repository and run `composer install --no-dev --optimize-autoloader`.
 2. Run `npm ci && npm run build`.
-3. Copy `.env.example` to `.env` and set `APP_URL` (with `https://`) and the database settings.
+3. Copy `.env.example` to `.env` and set `APP_URL` (with `https://`) and the database settings. Only the bootstrap variables are needed; everything else is set in the dashboard after the install, see [docs/settings.md](docs/settings.md).
 4. Run `php artisan vault:install`. It generates `APP_KEY` and `VAULT_KEY` when they are missing, migrates the database and creates the first admin. If the `.env` file cannot be written, it prints the key lines instead and stops: add them to the environment and run it again.
 5. Point the web server at the `public/` directory.
 6. Add the scheduler to cron: `* * * * * cd /path/to/vault && php artisan schedule:run >> /dev/null 2>&1`.
@@ -85,6 +85,10 @@ Run `php artisan vault:rotate-key`. It re-encrypts the data key of every credent
 ## Running behind a proxy or load balancer
 
 The vault trusts no proxy by default, so it sees the address of the proxy as the client address and the token IP allowlists would not work. Set `TRUSTED_PROXIES` to the comma separated IP addresses or CIDR ranges of your proxies. A wildcard is refused on purpose.
+
+## Settings
+
+After the install, the settings are managed in the dashboard by admins whose role holds the permission for each area. A variable in the environment overrides the dashboard value and locks that field. The list, the precedence, the permissions and the recovery command are in [docs/settings.md](docs/settings.md). If a wrong setting locks you out, run `php artisan vault:settings reset --lockout` on the server.
 
 ## Company use
 
