@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\AccessLog;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -22,7 +21,9 @@ Artisan::command('inspire', function () {
 |
 */
 
-Schedule::command('model:prune', ['--model' => [AccessLog::class, HealthCheckResultHistoryItem::class]])->daily();
+Schedule::command('vault:prune')->daily();
+
+Schedule::command('model:prune', ['--model' => [HealthCheckResultHistoryItem::class]])->daily();
 
 Schedule::command('vault:deactivate-inactive-admins')->daily();
 
