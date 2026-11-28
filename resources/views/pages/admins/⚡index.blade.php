@@ -1,14 +1,18 @@
 <?php
 
+use App\Actions\Vault\ChangeAdminRole;
 use App\Actions\Vault\DeactivateAdmin;
 use App\Actions\Vault\InviteAdmin;
 use App\Actions\Vault\RevokeInvitation;
+use App\Enums\AdminRole;
 use App\Exceptions\Vault\CannotDeactivateAdminException;
+use App\Exceptions\Vault\LastOwnerException;
 use App\Exceptions\Vault\InvitationNotAllowedException;
 use App\Models\Invitation;
 use App\Models\User;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
@@ -16,6 +20,8 @@ use Livewire\Component;
 
 new #[Title('Admins')] class extends Component {
     public string $email = '';
+
+    public string $role = 'admin';
 
     /** The invitation link. It only exists here until the one-time modal is closed. */
     #[Locked]
@@ -58,10 +64,13 @@ new #[Title('Admins')] class extends Component {
 
     public function invite(InviteAdmin $inviteAdmin): void
     {
-        $validated = $this->validate(['email' => ['required', 'string', 'email:rfc', 'max:255']]);
+        $validated = $this->validate([
+            'email' => ['required', 'string', 'email:rfc', 'max:255'],
+            'role' => ['required', Rule::enum(AdminRole::class)],
+        ]);
 
         try {
-            $issued = $inviteAdmin->handle($validated['email'], auth()->user());
+            $issued = $inviteAdmin->handle($validated['email'], auth()->user(), AdminRole::from($validated['role']));
         } catch (InvitationNotAllowedException $exception) {
             $this->addError('email', $exception->getMessage());
 
@@ -94,11 +103,31 @@ new #[Title('Admins')] class extends Component {
         Flux::toast(__('Invitation revoked.'));
     }
 
+    public function changeRole(int $userId, string $role, ChangeAdminRole $changeAdminRole): void
+    {
+        $newRole = AdminRole::tryFrom($role);
+
+        if ($newRole === null) {
+            return;
+        }
+
+        try {
+            $changeAdminRole->handle(User::query()->findOrFail($userId), $newRole, auth()->user());
+        } catch (LastOwnerException $exception) {
+            $this->addError('deactivate', $exception->getMessage());
+
+            return;
+        }
+
+        unset($this->activeAdmins);
+        Flux::toast(__('Role changed.'));
+    }
+
     public function deactivate(int $userId, DeactivateAdmin $deactivateAdmin): void
     {
         try {
             $deactivateAdmin->handle(User::query()->findOrFail($userId), auth()->user());
-        } catch (CannotDeactivateAdminException $exception) {
+        } catch (CannotDeactivateAdminException|LastOwnerException $exception) {
             $this->addError('deactivate', $exception->getMessage());
             Flux::modals()->close();
 
@@ -131,6 +160,7 @@ new #[Title('Admins')] class extends Component {
                     <tr>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Name') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Email') }}</th>
+                        <th class="px-4 py-2 text-start font-medium">{{ __('Role') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Second factor') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Created') }}</th>
                         <th class="px-4 py-2"></th>
@@ -141,6 +171,13 @@ new #[Title('Admins')] class extends Component {
                         <tr wire:key="admin-{{ $admin->id }}">
                             <td class="px-4 py-2">{{ $admin->name }}</td>
                             <td class="px-4 py-2">{{ $admin->email }}</td>
+                            <td class="px-4 py-2">
+                                <flux:select size="sm" :value="$admin->role->value" wire:change="changeRole({{ $admin->id }}, $event.target.value)" :aria-label="__('Role of :name', ['name' => $admin->name])">
+                                    @foreach (\App\Enums\AdminRole::cases() as $roleOption)
+                                        <flux:select.option :value="$roleOption->value">{{ __($roleOption->label()) }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </td>
                             <td class="px-4 py-2">
                                 @if ($admin->two_factor_confirmed_at)
                                     <flux:badge size="sm" color="green">{{ __('Authenticator app') }}</flux:badge>
@@ -195,6 +232,7 @@ new #[Title('Admins')] class extends Component {
                     <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
                         <tr>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Email') }}</th>
+                            <th class="px-4 py-2 text-start font-medium">{{ __('Role') }}</th>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Invited by') }}</th>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Expires') }}</th>
                             <th class="px-4 py-2"></th>
@@ -204,6 +242,7 @@ new #[Title('Admins')] class extends Component {
                         @foreach ($this->invitations as $invitation)
                             <tr wire:key="invitation-{{ $invitation->id }}">
                                 <td class="px-4 py-2">{{ $invitation->email }}</td>
+                                <td class="px-4 py-2">{{ __($invitation->role->label()) }}</td>
                                 <td class="px-4 py-2">{{ $invitation->inviter?->name ?? '-' }}</td>
                                 <td class="px-4 py-2" title="{{ $invitation->expires_at }}">
                                     @if ($invitation->expires_at->isPast())
@@ -258,6 +297,12 @@ new #[Title('Admins')] class extends Component {
             </div>
 
             <flux:input wire:model="email" type="email" :label="__('Email')" required />
+
+            <flux:select wire:model="role" :label="__('Role')">
+                @foreach (\App\Enums\AdminRole::cases() as $roleOption)
+                    <flux:select.option :value="$roleOption->value">{{ __($roleOption->label()) }} - {{ __($roleOption->summary()) }}</flux:select.option>
+                @endforeach
+            </flux:select>
 
             <div class="flex justify-end gap-2">
                 <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>

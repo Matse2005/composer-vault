@@ -6,7 +6,9 @@ use App\Enums\AuditAction;
 use App\Models\User;
 use App\Models\VaultSetting;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -131,6 +133,8 @@ class VaultSettings
      */
     public function update(array $values, User $actor): void
     {
+        Gate::forUser($actor)->authorize(Ability::ManageSettings);
+
         $rules = self::rules();
         $unknown = array_diff(array_keys($values), array_keys($rules));
 

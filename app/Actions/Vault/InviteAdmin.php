@@ -2,14 +2,18 @@
 
 namespace App\Actions\Vault;
 
+use App\Enums\AdminRole;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\InvitationNotAllowedException;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use App\Vault\Invitations\AdminInvitation;
 use App\Vault\Invitations\IssuedInvitation;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 
 class InviteAdmin
@@ -26,8 +30,35 @@ class InviteAdmin
      * and so the token, to a log.
      *
      * @throws InvitationNotAllowedException When the address already belongs to an admin or has a usable invitation.
+     * @throws AuthorizationException When the inviter may not invite admins.
      */
-    public function handle(string $email, ?User $inviter): IssuedInvitation
+    public function handle(string $email, User $inviter, AdminRole $role = AdminRole::Admin): IssuedInvitation
+    {
+        Gate::forUser($inviter)->authorize(Ability::ManageAdmins);
+
+        return $this->issue($email, $inviter, $role);
+    }
+
+    /**
+     * Invite the first Owner of a new install. Only the install command calls this: it needs no inviter, and it
+     * refuses to run as soon as an admin exists.
+     *
+     * @throws InvitationNotAllowedException When the address has a usable invitation already.
+     * @throws AuthorizationException When an admin exists or the call does not come from the console.
+     */
+    public function handleFirstOwner(string $email): IssuedInvitation
+    {
+        if (! app()->runningInConsole() || User::query()->exists()) {
+            throw new AuthorizationException;
+        }
+
+        return $this->issue($email, null, AdminRole::Owner);
+    }
+
+    /**
+     * @throws InvitationNotAllowedException
+     */
+    private function issue(string $email, ?User $inviter, AdminRole $role): IssuedInvitation
     {
         $email = mb_strtolower(trim($email));
 
@@ -36,16 +67,17 @@ class InviteAdmin
         $plainToken = $this->generateToken();
         $expireHours = (int) config('vault.invitations.expire_hours');
 
-        $invitation = DB::transaction(function () use ($email, $plainToken, $expireHours, $inviter): Invitation {
+        $invitation = DB::transaction(function () use ($email, $role, $plainToken, $expireHours, $inviter): Invitation {
             $invitation = (new Invitation)->forceFill([
                 'email' => $email,
+                'role' => $role,
                 'token_hash' => hash('sha256', $plainToken),
                 'invited_by' => $inviter?->getKey(),
                 'expires_at' => now()->addHours($expireHours),
             ]);
             $invitation->save();
 
-            $this->auditLogger->record(AuditAction::AdminInvited, $invitation, ['expires_at' => $invitation->expires_at], $inviter);
+            $this->auditLogger->record(AuditAction::AdminInvited, $invitation, ['expires_at' => $invitation->expires_at, 'role' => $role], $inviter);
 
             return $invitation;
         });

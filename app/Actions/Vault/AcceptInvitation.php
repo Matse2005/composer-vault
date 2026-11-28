@@ -36,6 +36,7 @@ class AcceptInvitation
             $user = (new User)->forceFill([
                 'name' => $name,
                 'email' => $invitation->email,
+                'role' => $invitation->role,
                 'password' => $password,
                 'email_verified_at' => now(),
             ]);

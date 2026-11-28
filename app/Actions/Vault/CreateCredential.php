@@ -6,8 +6,10 @@ use App\Enums\AuditAction;
 use App\Exceptions\Vault\HostConflictException;
 use App\Models\Credential;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use App\Vault\HostConflictGuard;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use SensitiveParameter;
 
 class CreateCredential
@@ -27,6 +29,8 @@ class CreateCredential
      */
     public function handle(array $attributes, #[SensitiveParameter] string $secret, array $projectIds): Credential
     {
+        Gate::authorize(Ability::ManageVault);
+
         return DB::transaction(function () use ($attributes, $secret, $projectIds): Credential {
             $credential = new Credential($attributes);
             $credential->setSecret($secret);

@@ -14,7 +14,9 @@ const INVALID_INVITATION_MESSAGE = 'This invitation is invalid or has expired.';
  */
 function invitationWithToken(string $email = 'new.admin@example.com'): array
 {
-    $issued = app(InviteAdmin::class)->handle($email, null);
+    $inviter = User::factory()->create();
+    $issued = app(InviteAdmin::class)->handle($email, $inviter);
+    $inviter->delete();
 
     return [$issued->invitation, basename(parse_url($issued->url, PHP_URL_PATH))];
 }

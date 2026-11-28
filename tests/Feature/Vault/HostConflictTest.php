@@ -6,6 +6,11 @@ use App\Actions\Vault\UpdateCredential;
 use App\Exceptions\Vault\HostConflictException;
 use App\Models\Credential;
 use App\Models\Project;
+use App\Models\User;
+
+beforeEach(function () {
+    $this->actingAs(User::factory()->create());
+});
 
 it('replaces the project links of a credential', function () {
     $credential = Credential::factory()->create();

@@ -15,36 +15,52 @@
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
+                    @can('vault.view')
                     <flux:sidebar.item icon="folder" :href="route('projects.index')" :current="request()->routeIs('projects.*')" wire:navigate>
                         {{ __('Projects') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('vault.view')
                     <flux:sidebar.item icon="key" :href="route('credentials.index')" :current="request()->routeIs('credentials.*')" wire:navigate>
                         {{ __('Credentials') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('vault.view')
                     <flux:sidebar.item icon="ticket" :href="route('tokens.index')" :current="request()->routeIs('tokens.*')" wire:navigate>
                         {{ __('Tokens') }}
                     </flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
 
                 <flux:sidebar.group :heading="__('Activity')" class="grid">
+                    @can('logs.view')
                     <flux:sidebar.item icon="clipboard-document-list" :href="route('logs.access')" :current="request()->routeIs('logs.access')" wire:navigate>
                         {{ __('Access log') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('logs.view')
                     <flux:sidebar.item icon="shield-check" :href="route('logs.audit')" :current="request()->routeIs('logs.audit')" wire:navigate>
                         {{ __('Audit log') }}
                     </flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
 
                 <flux:sidebar.group :heading="__('Administration')" class="grid">
+                    @can('admins.manage')
                     <flux:sidebar.item icon="users" :href="route('admins.index')" :current="request()->routeIs('admins.*')" wire:navigate>
                         {{ __('Admins') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('settings.manage')
                     <flux:sidebar.item icon="building-office" :href="route('settings.organisation')" :current="request()->routeIs('settings.organisation')" wire:navigate>
                         {{ __('Organisation') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('logs.view')
                     <flux:sidebar.item icon="shield-exclamation" :href="route('security-status')" :current="request()->routeIs('security-status')" wire:navigate>
                         {{ __('Security status') }}
                     </flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 

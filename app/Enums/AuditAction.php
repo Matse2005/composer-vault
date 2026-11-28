@@ -30,6 +30,7 @@ enum AuditAction: string
     case KeyRotated = 'key_rotated';
     case VaultInstalled = 'vault_installed';
     case SettingsChanged = 'settings_changed';
+    case AdminRoleChanged = 'admin_role_changed';
 
     /**
      * Get the short English sentence stored as the description of the entry, for example "Credential created".

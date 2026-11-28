@@ -3,6 +3,7 @@
 use App\Actions\Vault\AcceptInvitation;
 use App\Actions\Vault\InviteAdmin;
 use App\Actions\Vault\RevokeInvitation;
+use App\Enums\AdminRole;
 use App\Exceptions\Vault\InvalidInvitationException;
 use App\Exceptions\Vault\InvitationNotAllowedException;
 use App\Models\AuditEntry;
@@ -16,7 +17,11 @@ use Illuminate\Support\Facades\Notification;
 
 function invite(string $email = 'new.admin@example.com', ?User $inviter = null): IssuedInvitation
 {
-    return app(InviteAdmin::class)->handle($email, $inviter);
+    $temporary = $inviter === null ? User::factory()->create() : null;
+    $issued = app(InviteAdmin::class)->handle($email, $inviter ?? $temporary);
+    $temporary?->delete();
+
+    return $issued;
 }
 
 function plainTokenOf(IssuedInvitation $issued): string
@@ -56,7 +61,9 @@ it('defaults to an expiry of 48 hours', function () {
 });
 
 it('can be issued without an inviter, for the installer', function () {
-    expect(invite(inviter: null)->invitation->invited_by)->toBeNull();
+    $issued = app(InviteAdmin::class)->handleFirstOwner('first@example.test');
+
+    expect($issued->invitation->invited_by)->toBeNull()->and($issued->invitation->role)->toBe(AdminRole::Owner);
 });
 
 it('does not store the plain token in any column', function () {

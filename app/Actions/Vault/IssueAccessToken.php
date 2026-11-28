@@ -7,11 +7,13 @@ use App\Exceptions\Vault\TokenIssuingFailedException;
 use App\Models\AccessToken;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use App\Vault\Tokens\IpAllowlist;
 use App\Vault\Tokens\IssuedToken;
 use App\Vault\Tokens\TokenIssuer;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
 class IssueAccessToken
@@ -32,6 +34,8 @@ class IssueAccessToken
      */
     public function handle(string $name, array $projectIds, ?array $allowedIps, ?CarbonImmutable $expiresAt, ?User $creator): IssuedToken
     {
+        Gate::authorize(Ability::ManageVault);
+
         $allowedIps = IpAllowlist::normalizeList($allowedIps);
 
         return DB::transaction(function () use ($name, $projectIds, $allowedIps, $expiresAt, $creator): IssuedToken {

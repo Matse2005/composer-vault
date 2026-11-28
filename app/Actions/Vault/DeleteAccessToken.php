@@ -5,7 +5,9 @@ namespace App\Actions\Vault;
 use App\Enums\AuditAction;
 use App\Models\AccessToken;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class DeleteAccessToken
 {
@@ -17,6 +19,8 @@ class DeleteAccessToken
      */
     public function handle(AccessToken $token): void
     {
+        Gate::authorize(Ability::ManageVault);
+
         DB::transaction(function () use ($token): void {
             $this->auditLogger->record(
                 AuditAction::TokenDeleted,

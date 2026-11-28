@@ -5,7 +5,9 @@ namespace App\Actions\Vault;
 use App\Enums\AuditAction;
 use App\Models\AccessToken;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class RevokeAccessToken
 {
@@ -17,6 +19,8 @@ class RevokeAccessToken
      */
     public function handle(AccessToken $token): void
     {
+        Gate::authorize(Ability::ManageVault);
+
         if ($token->isRevoked()) {
             return;
         }
