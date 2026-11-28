@@ -6,6 +6,7 @@ use App\Enums\AuditAction;
 use App\Models\AuditEntry;
 use App\Models\User;
 use App\Vault\Compliance\SecurityEventStream;
+use App\Vault\Settings\ChangeApproval;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +48,7 @@ class AuditLogger
             $previousHash = (string) $head->last_hash;
             $description = $action->description();
 
-            $properties = AuditChanges::sanitize($changes);
+            $properties = AuditChanges::sanitize([...$changes, ...app(ChangeApproval::class)->auditContext()]);
 
             if ($subjectLabel !== null) {
                 $properties['subject_label'] = $subjectLabel;

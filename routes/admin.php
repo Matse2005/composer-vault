@@ -52,6 +52,7 @@ Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
     Route::livewire('admins', 'pages::admins.index')->name('admins.index')->middleware('can:'.Ability::AdminsView);
     Route::livewire('admin-roles', 'pages::admins.roles')->name('roles.index')->middleware('can:'.Ability::RolesManage);
 
+    Route::livewire('admin-settings/approvals', 'pages::settings.approvals')->name('settings.approvals')->middleware('can:'.Ability::ApprovalManage);
     Route::livewire('admin-settings/api', 'pages::settings.api')->name('settings.api')->middleware('can:'.Ability::SettingsApi);
     Route::livewire('admin-settings/history', 'pages::settings.history')->name('settings.history')->middleware('can:settings.any');
     Route::livewire('admin-settings/organisation', 'pages::settings.organisation')->name('settings.organisation')->middleware('can:'.Ability::SettingsOrganisation);

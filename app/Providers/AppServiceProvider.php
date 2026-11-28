@@ -28,6 +28,7 @@ use App\Vault\Health\TrustedProxiesCheck;
 use App\Vault\Health\VaultKeyCheck;
 use App\Vault\RequestAttributes;
 use App\Vault\Settings\ApplyVaultSettings;
+use App\Vault\Settings\ChangeApproval;
 use App\Vault\Settings\VaultSettings;
 use App\Vault\Sso\SsoLogout;
 use App\Vault\Tokens\AdminIpList;
@@ -65,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(KeyProvider::class, EnvKeyProvider::class);
         $this->app->scoped(VaultSettings::class);
         $this->app->scoped(RolePermissions::class);
+        $this->app->scoped(ChangeApproval::class);
     }
 
     /**

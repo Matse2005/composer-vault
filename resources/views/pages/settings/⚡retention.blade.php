@@ -49,7 +49,7 @@ new #[Title('Retention')] class extends Component {
         $this->retentionWarning = null;
 
         try {
-            $settings->update([
+            $pending = $settings->update([
                 'retention.access_log_days' => $this->accessLogDays,
                 'retention.audit_log_days' => $this->auditLogDays,
                 'retention.invitation_days' => $this->invitationDays,
@@ -70,7 +70,7 @@ new #[Title('Retention')] class extends Component {
             return;
         }
 
-        Flux::toast(__('Retention saved.'));
+        Flux::toast($pending === [] ? __('Retention saved.') : __('Saved. :count critical change(s) wait for the approval of another Owner.', ['count' => count($pending)]));
     }
 }; ?>
 
