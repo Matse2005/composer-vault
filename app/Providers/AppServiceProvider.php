@@ -121,6 +121,8 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureAuthorization(): void
     {
+        Gate::define('settings.any', fn (User $user): bool => $user->hasAbility(Ability::LogsView) || collect(Ability::all())->contains(fn (string $permission): bool => str_starts_with($permission, 'settings.') && $user->hasAbility($permission)));
+
         foreach ([...Ability::all(), Ability::ApprovalManage] as $ability) {
             Gate::define($ability, fn (User $user): bool => $user->hasAbility($ability));
         }

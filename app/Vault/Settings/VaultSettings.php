@@ -272,6 +272,19 @@ class VaultSettings
     }
 
     /**
+     * Where the value of a setting comes from: the environment, the dashboard or the default.
+     */
+    public function source(string $key): string
+    {
+        return match (true) {
+            in_array($key, self::SECRET_KEYS, true) && $this->secretIsFromEnvironment($key) => 'environment',
+            $this->isFromEnvironment($key) => 'environment',
+            array_key_exists($key, $this->values()) => 'dashboard',
+            default => 'default',
+        };
+    }
+
+    /**
      * Determine whether an environment variable sets the value, which then locks the dashboard field.
      */
     public function isFromEnvironment(string $key): bool

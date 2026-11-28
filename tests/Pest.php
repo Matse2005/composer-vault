@@ -2,6 +2,7 @@
 
 use App\Models\AccessToken;
 use App\Models\AuditEntry;
+use App\Models\Role;
 use App\Models\User;
 use Database\Factories\AccessTokenFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -146,4 +147,19 @@ function finishSso(array $claims = [], ?string $state = null, bool $useNonce = t
 function lastRejection(): ?string
 {
     return AuditEntry::query()->where('event', 'sso_login_rejected')->latest('sequence')->first()?->properties['reason'] ?? null;
+}
+
+/**
+ * A user with a custom role holding exactly these permissions.
+ *
+ * @param  list<string>  $permissions
+ */
+function userWithPermissions(array $permissions, bool $twoFactor = true): User
+{
+    $role = Role::factory()->withPermissions($permissions)->create();
+    $user = $twoFactor ? User::factory()->withTwoFactor()->create() : User::factory()->create();
+    $role->assignTo($user);
+    $user->save();
+
+    return $user;
 }
