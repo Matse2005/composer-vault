@@ -35,6 +35,7 @@ enum AuditAction: string
     case SsoAccountLinked = 'sso_account_linked';
     case AdminProvisioned = 'admin_provisioned';
     case BreakGlassChanged = 'break_glass_changed';
+    case AdminReactivated = 'admin_reactivated';
     case BreakGlassLogin = 'break_glass_login';
 
     /**

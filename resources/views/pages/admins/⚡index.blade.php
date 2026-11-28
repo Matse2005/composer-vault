@@ -4,6 +4,7 @@ use App\Actions\Vault\ChangeAdminRole;
 use App\Actions\Vault\DeactivateAdmin;
 use App\Actions\Vault\InviteAdmin;
 use App\Actions\Vault\SetBreakGlass;
+use App\Actions\Vault\ReactivateAdmin;
 use App\Actions\Vault\RevokeInvitation;
 use App\Enums\AdminRole;
 use App\Exceptions\Vault\BreakGlassNotAllowedException;
@@ -125,6 +126,14 @@ new #[Title('Admins')] class extends Component {
         Flux::toast(__('Role changed.'));
     }
 
+    public function reactivate(int $userId, ReactivateAdmin $reactivateAdmin): void
+    {
+        $reactivateAdmin->handle(User::query()->findOrFail($userId), auth()->user());
+
+        unset($this->activeAdmins, $this->deactivatedAdmins);
+        Flux::toast(__('Admin reactivated.'));
+    }
+
     public function setBreakGlass(int $userId, bool $on, SetBreakGlass $setBreakGlass): void
     {
         try {
@@ -178,7 +187,7 @@ new #[Title('Admins')] class extends Component {
                         <th class="px-4 py-2 text-start font-medium">{{ __('Email') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Role') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Second factor') }}</th>
-                        <th class="px-4 py-2 text-start font-medium">{{ __('Created') }}</th>
+                        <th class="px-4 py-2 text-start font-medium">{{ __('Last login') }}</th>
                         <th class="px-4 py-2"></th>
                     </tr>
                 </thead>
@@ -211,7 +220,7 @@ new #[Title('Admins')] class extends Component {
                                     <flux:badge size="sm" color="amber">{{ __('None yet') }}</flux:badge>
                                 @endunless
                             </td>
-                            <td class="px-4 py-2" title="{{ $admin->created_at }}">{{ $admin->created_at?->diffForHumans() }}</td>
+                            <td class="px-4 py-2" title="{{ $admin->last_login_at }}">{{ $admin->last_login_at?->diffForHumans() ?? __('Never') }}</td>
                             <td class="px-4 py-2 text-end">
                                 @if ($admin->isNot(auth()->user()))
                                     <flux:modal.trigger :name="'deactivate-'.$admin->id">
@@ -295,6 +304,7 @@ new #[Title('Admins')] class extends Component {
                             <th class="px-4 py-2 text-start font-medium">{{ __('Name') }}</th>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Email') }}</th>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Deactivated') }}</th>
+                            <th class="px-4 py-2"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -303,6 +313,7 @@ new #[Title('Admins')] class extends Component {
                                 <td class="px-4 py-2">{{ $admin->name }}</td>
                                 <td class="px-4 py-2">{{ $admin->email }}</td>
                                 <td class="px-4 py-2" title="{{ $admin->deactivated_at }}">{{ $admin->deactivated_at->diffForHumans() }}</td>
+                                <td class="px-4 py-2 text-end"><flux:button size="sm" wire:click="reactivate({{ $admin->id }})">{{ __('Reactivate') }}</flux:button></td>
                             </tr>
                         @endforeach
                     </tbody>
