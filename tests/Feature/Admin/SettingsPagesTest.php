@@ -43,12 +43,12 @@ it('saves the security settings, including the admin ip allowlist, and refuses a
     config(['vault.env.session_lifetime' => null]);
 
     Livewire::test('pages::settings.access')
-        ->set('adminAllowedIps', '10.0.0.0/8, 192.0.2.5')->set('sessionIdleMinutes', '30')->set('invitationExpireHours', '24')
+        ->set('adminAllowedIps', '10.0.0.0/8, 127.0.0.1')->set('sessionIdleMinutes', '30')->set('invitationExpireHours', '24')
         ->call('save')->assertHasNoErrors();
 
     $settings = app(VaultSettings::class);
 
-    expect($settings->get('admin.allowed_ips'))->toBe('10.0.0.0/8, 192.0.2.5')->and($settings->get('security.session_idle_minutes'))->toBe(30)->and($settings->invitationExpireHours())->toBe(24);
+    expect($settings->get('admin.allowed_ips'))->toBe('10.0.0.0/8, 127.0.0.1')->and($settings->get('security.session_idle_minutes'))->toBe(30)->and($settings->invitationExpireHours())->toBe(24);
 
     Livewire::test('pages::settings.access')->set('adminAllowedIps', 'nope')->call('save')->assertHasErrors('adminAllowedIps');
 });

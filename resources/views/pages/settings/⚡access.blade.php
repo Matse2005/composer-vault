@@ -2,6 +2,7 @@
 
 use App\Vault\Settings\VaultSettings;
 use Flux\Flux;
+use App\Exceptions\Vault\LockoutGuardException;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -31,6 +32,9 @@ new #[Title('Security')] class extends Component {
 
     public bool $breakGlassBypass = false;
 
+    /** The warning of the lockout guard that waits for the admin's confirmation. */
+    public ?string $lockoutWarning = null;
+
     public function mount(VaultSettings $settings): void
     {
         $this->sessionIdleMinutes = (string) $settings->get('security.session_idle_minutes');
@@ -57,9 +61,22 @@ new #[Title('Security')] class extends Component {
         return app(VaultSettings::class)->isFromEnvironment($key);
     }
 
-    public function save(VaultSettings $settings): void
+    /**
+     * Save again with the confirmation that the admin gave in the modal.
+     */
+    public function saveConfirmed(VaultSettings $settings): void
+    {
+        Flux::modals()->close();
+        $this->save($settings, ['admin.allowed_ips' => true]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $confirmations
+     */
+    public function save(VaultSettings $settings, array $confirmations = []): void
     {
         $this->resetErrorBag();
+        $this->lockoutWarning = null;
         $values = [];
 
         foreach (self::FIELDS as $property => $key) {
@@ -69,7 +86,12 @@ new #[Title('Security')] class extends Component {
         }
 
         try {
-            $settings->update($values, auth()->user());
+            $settings->update($values, auth()->user(), $confirmations);
+        } catch (LockoutGuardException $exception) {
+            $this->lockoutWarning = $exception->getMessage();
+            Flux::modal('confirm-lockout')->show();
+
+            return;
         } catch (ValidationException $exception) {
             $fields = array_flip(self::FIELDS);
 
@@ -139,4 +161,18 @@ new #[Title('Security')] class extends Component {
 
         <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
     </form>
+
+    <flux:modal name="confirm-lockout" class="min-w-[22rem] max-w-md">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('You may lock yourself out') }}</flux:heading>
+                <flux:text class="mt-2" data-test="lockout-warning">{{ $lockoutWarning }}</flux:text>
+                <flux:text class="mt-2">{{ __('If it goes wrong, an operator with shell access can run php artisan vault:settings reset --lockout.') }}</flux:text>
+            </div>
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button wire:click="saveConfirmed" variant="danger">{{ __('Save anyway') }}</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </section>

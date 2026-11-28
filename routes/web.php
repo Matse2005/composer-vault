@@ -11,9 +11,10 @@ Route::middleware(['guest', 'throttle:invitations', RequireUsableInvitation::cla
     Route::livewire('invitations/{token}', 'pages::auth.accept-invitation')->name('invitations.accept');
 });
 
-Route::middleware(['guest', EnsureSsoEnabled::class, 'throttle:sso'])->prefix('auth/sso')->group(function () {
-    Route::get('redirect', [SsoController::class, 'redirect'])->name('sso.redirect');
+Route::middleware([EnsureSsoEnabled::class, 'throttle:sso'])->prefix('auth/sso')->group(function () {
+    Route::get('redirect', [SsoController::class, 'redirect'])->middleware('guest')->name('sso.redirect');
     Route::get('callback', [SsoController::class, 'callback'])->name('sso.callback');
+    Route::get('test', [SsoController::class, 'test'])->middleware(['auth', 'verified', 'second-factor', 'can:settings.sso'])->name('sso.test');
 });
 
 Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Middleware\EnsureSecondFactor;
+use App\Http\Middleware\RestrictAdminIps;
 use App\Http\Responses\SsoAwareLogoutResponse;
 use App\Models\User;
 use App\Vault\Sso\SsoConfig;
@@ -66,7 +67,7 @@ class FortifyServiceProvider extends ServiceProvider
 
             $user = User::query()->where(Fortify::username(), $request->input(Fortify::username()))->first();
 
-            if ($user === null || $user->isDeactivated() || ! Hash::check((string) $request->input('password'), $user->password) || ! app(SsoConfig::class)->allowsLocalLogin($user)) {
+            if ($user === null || $user->isDeactivated() || ! Hash::check((string) $request->input('password'), $user->password) || ! app(SsoConfig::class)->allowsLocalLogin($user) || ($request->attributes->get(RestrictAdminIps::RESTRICTED_ATTRIBUTE) === true && ! $user->is_break_glass)) {
                 return null;
             }
 
