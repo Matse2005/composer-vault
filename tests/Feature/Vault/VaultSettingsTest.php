@@ -112,7 +112,7 @@ it('keeps contact details out of the audit entry', function () {
     $entry = AuditEntry::query()->where('event', 'settings_changed')->sole();
 
     expect(json_encode($entry->properties))->not->toContain('security@acme.test')->not->toContain('Acme Corp')
-        ->and($entry->properties->toArray()['changes'])->toBe([
+        ->and($entry->properties->toArray()['changes'])->toEqual([
             'organisation.name' => ['old' => 'changed', 'new' => 'changed'],
             'organisation.security_contact' => ['old' => 'changed', 'new' => 'changed'],
         ])

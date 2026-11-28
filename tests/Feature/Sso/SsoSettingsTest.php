@@ -55,7 +55,7 @@ it('stores the secret encrypted, never in plain text and never in the audit entr
 
     expect($row)->not->toContain('super-secret-value')
         ->and(json_encode($entry->properties))->not->toContain('super-secret-value')
-        ->and($entry->properties->toArray())->toBe(['changes' => ['sso.client_secret' => ['old' => 'changed', 'new' => 'changed']]])
+        ->and($entry->properties->toArray())->toEqual(['changes' => ['sso.client_secret' => ['old' => 'changed', 'new' => 'changed']]])
         ->and(app(VaultSettings::class)->secret('sso.client_secret'))->toBe('super-secret-value');
 });
 

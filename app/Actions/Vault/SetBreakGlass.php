@@ -39,7 +39,7 @@ class SetBreakGlass
                     throw BreakGlassNotAllowedException::notAnOwner();
                 }
 
-                if (User::query()->where('is_break_glass', true)->lockForUpdate()->count() >= self::MAXIMUM) {
+                if (User::query()->where('is_break_glass', true)->lockForUpdate()->pluck('id')->count() >= self::MAXIMUM) {
                     throw BreakGlassNotAllowedException::tooMany();
                 }
             }
