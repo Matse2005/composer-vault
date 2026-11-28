@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Enums\AccessResult;
 use App\Http\ApiError;
 use App\Vault\RequestAttributes;
+use App\Vault\Settings\VaultSettings;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -22,7 +23,7 @@ class BlockExcessiveFailures
     {
         $key = 'vault-api-failures:'.$request->ip();
 
-        if (RateLimiter::tooManyAttempts($key, (int) config('vault.api.failed_attempts_per_minute'))) {
+        if (RateLimiter::tooManyAttempts($key, app(VaultSettings::class)->apiFailedAttemptsPerMinute())) {
             $request->attributes->set(RequestAttributes::ACCESS_RESULT, AccessResult::RateLimited);
 
             return ApiError::response(429, ApiError::TOO_MANY_REQUESTS, [

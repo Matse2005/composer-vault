@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Vault\Settings\VaultSettings;
 use App\Vault\Tokens\AdminIpList;
 use App\Vault\Tokens\IpAllowlist;
 use Closure;
@@ -19,7 +20,7 @@ class RestrictAdminIps
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $allowedIps = AdminIpList::parse(config('vault.admin.allowed_ips'));
+        $allowedIps = AdminIpList::parse(app(VaultSettings::class)->get('admin.allowed_ips'));
 
         if ($allowedIps === [] || IpAllowlist::allows($allowedIps, (string) $request->ip())) {
             return $next($request);

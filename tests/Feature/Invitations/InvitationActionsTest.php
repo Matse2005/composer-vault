@@ -11,6 +11,7 @@ use App\Models\Invitation;
 use App\Models\User;
 use App\Vault\Invitations\AdminInvitation;
 use App\Vault\Invitations\IssuedInvitation;
+use App\Vault\Settings\VaultSettings;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -57,7 +58,7 @@ it('uses the configured expiry', function () {
 });
 
 it('defaults to an expiry of 48 hours', function () {
-    expect(config('vault.invitations.expire_hours'))->toBe(48);
+    expect(app(VaultSettings::class)->invitationExpireHours())->toBe(48);
 });
 
 it('can be issued without an inviter, for the installer', function () {

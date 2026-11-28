@@ -5,6 +5,7 @@ namespace App\Vault\Settings;
 use App\Enums\AlertRule;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\DecryptionFailedException;
+use App\Exceptions\Vault\InvalidAdminIpAllowlistException;
 use App\Models\User;
 use App\Models\VaultSetting;
 use App\Vault\Audit\AuditLogger;
@@ -12,6 +13,9 @@ use App\Vault\Authorization\Ability;
 use App\Vault\Compliance\SecurityAlerts;
 use App\Vault\Crypto\EncryptedSecret;
 use App\Vault\Crypto\SecretCipher;
+use App\Vault\Tokens\AdminIpList;
+use Closure;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
@@ -34,10 +38,10 @@ class VaultSettings
     private ?array $stored = null;
 
     /** The settings that hold a secret. They are stored encrypted, never shown again and never audited by value. */
-    public const SECRET_KEYS = ['sso.client_secret', 'notifications.slack_webhook'];
+    public const SECRET_KEYS = ['sso.client_secret', 'notifications.slack_webhook', 'mail.password'];
 
     /** The config key of the environment variable that overrides a secret setting. */
-    public const SECRET_ENVIRONMENT = ['sso.client_secret' => 'vault.sso.client_secret', 'notifications.slack_webhook' => 'vault.health.notify_slack_webhook'];
+    public const SECRET_ENVIRONMENT = ['sso.client_secret' => 'vault.sso.client_secret', 'notifications.slack_webhook' => 'vault.health.notify_slack_webhook', 'mail.password' => 'vault.env.mail_password'];
 
     public function __construct(private AuditLogger $auditLogger, private SecretCipher $cipher) {}
 
@@ -45,7 +49,7 @@ class VaultSettings
      * The validation rules per setting. Integer minimums are guards against accidental loss of evidence, not legal
      * requirements.
      *
-     * @return array<string, list<string>>
+     * @return array<string, list<mixed>>
      */
     public static function rules(): array
     {
@@ -59,6 +63,28 @@ class VaultSettings
             'organisation.name' => ['nullable', 'string', 'max:255'],
             'organisation.security_contact' => ['nullable', 'string', 'email:rfc', 'max:255'],
             'organisation.privacy_contact' => ['nullable', 'string', 'email:rfc', 'max:255'],
+            'api.rate_limit_per_minute' => ['required', 'integer', 'min:1', 'max:100000'],
+            'api.failed_attempts_per_minute' => ['required', 'integer', 'min:1', 'max:10000'],
+            'admin.allowed_ips' => ['nullable', 'string', 'max:2000', function (string $attribute, mixed $value, Closure $fail): void {
+                try {
+                    AdminIpList::parse((string) $value);
+                } catch (InvalidAdminIpAllowlistException) {
+                    $fail(__('Every entry must be an IP address or a CIDR range, separated by commas.'));
+                }
+            }],
+            'security.break_glass_bypasses_ip_allowlist' => ['boolean'],
+            'security.session_idle_minutes' => ['required', 'integer', 'min:5', 'max:1440'],
+            'invitations.expire_hours' => ['required', 'integer', 'min:1', 'max:720'],
+            'mail.host' => ['nullable', 'string', 'max:255'],
+            'mail.port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'mail.encryption' => ['nullable', 'string', Rule::in(['tls', 'ssl', 'none'])],
+            'mail.username' => ['nullable', 'string', 'max:255'],
+            'mail.from_address' => ['nullable', 'string', 'email:rfc', 'max:255'],
+            'mail.from_name' => ['nullable', 'string', 'max:255'],
+            'alerts.failed_attempts_threshold' => ['required', 'integer', 'min:3', 'max:10000'],
+            'alerts.sso_rejections_threshold' => ['required', 'integer', 'min:3', 'max:10000'],
+            ...collect(AlertRule::cases())->mapWithKeys(fn (AlertRule $rule): array => ['alerts.rule.'.$rule->value => ['boolean']])->all(),
+            'approval.enabled' => ['boolean'],
             'security.session_absolute_hours' => ['required', 'integer', 'min:1', 'max:720'],
             'security.inactive_deactivate_days' => ['required', 'integer', 'min:7', 'max:3650'],
             'notifications.mail' => ['nullable', 'string', 'email:rfc', 'max:255'],
@@ -97,6 +123,22 @@ class VaultSettings
             'organisation.name' => null,
             'organisation.security_contact' => null,
             'organisation.privacy_contact' => null,
+            'api.rate_limit_per_minute' => 60,
+            'api.failed_attempts_per_minute' => 10,
+            'admin.allowed_ips' => null,
+            'security.break_glass_bypasses_ip_allowlist' => false,
+            'security.session_idle_minutes' => 60,
+            'invitations.expire_hours' => 48,
+            'mail.host' => null,
+            'mail.port' => null,
+            'mail.encryption' => null,
+            'mail.username' => null,
+            'mail.from_address' => null,
+            'mail.from_name' => null,
+            'alerts.failed_attempts_threshold' => 20,
+            'alerts.sso_rejections_threshold' => 10,
+            ...collect(AlertRule::cases())->mapWithKeys(fn (AlertRule $rule): array => ['alerts.rule.'.$rule->value => true])->all(),
+            'approval.enabled' => false,
             'security.session_absolute_hours' => 12,
             'security.inactive_deactivate_days' => 90,
             'notifications.mail' => null,
@@ -127,6 +169,17 @@ class VaultSettings
     public static function environmentOverrides(): array
     {
         return [
+            'api.rate_limit_per_minute' => 'vault.api.rate_limit_per_minute',
+            'api.failed_attempts_per_minute' => 'vault.api.failed_attempts_per_minute',
+            'admin.allowed_ips' => 'vault.admin.allowed_ips',
+            'security.session_idle_minutes' => 'vault.env.session_lifetime',
+            'invitations.expire_hours' => 'vault.invitations.expire_hours',
+            'mail.host' => 'vault.env.mail_host',
+            'mail.port' => 'vault.env.mail_port',
+            'mail.encryption' => 'vault.env.mail_encryption',
+            'mail.username' => 'vault.env.mail_username',
+            'mail.from_address' => 'vault.env.mail_from_address',
+            'mail.from_name' => 'vault.env.mail_from_name',
             'security.session_absolute_hours' => 'vault.admin.session_absolute_hours',
             'security.inactive_deactivate_days' => 'vault.admin.inactive_deactivate_days',
             'notifications.mail' => 'vault.health.notify_mail',
@@ -176,6 +229,21 @@ class VaultSettings
     public function accessReviewIntervalDays(): int
     {
         return (int) $this->get('policy.access_review_interval_days');
+    }
+
+    public function apiRateLimitPerMinute(): int
+    {
+        return (int) $this->get('api.rate_limit_per_minute');
+    }
+
+    public function apiFailedAttemptsPerMinute(): int
+    {
+        return (int) $this->get('api.failed_attempts_per_minute');
+    }
+
+    public function invitationExpireHours(): int
+    {
+        return (int) $this->get('invitations.expire_hours');
     }
 
     public function sessionAbsoluteHours(): int
@@ -384,7 +452,7 @@ class VaultSettings
      * validator runs. An empty string counts as no value.
      *
      * @param  array<string, mixed>  $values
-     * @param  array<string, list<string>>  $rules
+     * @param  array<string, list<mixed>>  $rules
      * @return array<string, mixed>
      *
      * @throws ValidationException
@@ -423,7 +491,12 @@ class VaultSettings
     private function values(bool $fresh = false): array
     {
         if ($this->stored === null || $fresh) {
-            $this->stored = VaultSetting::query()->pluck('value', 'key')->all();
+            try {
+                $this->stored = VaultSetting::query()->pluck('value', 'key')->all();
+            } catch (QueryException) {
+                // The table does not exist yet (a fresh install, before the migrations): every setting is at its default.
+                $this->stored = [];
+            }
         }
 
         return $this->stored;
@@ -439,7 +512,7 @@ class VaultSettings
 
         return match (true) {
             is_bool($default) => filter_var($value, FILTER_VALIDATE_BOOLEAN),
-            is_int($default) || str_contains($key, '_days') => (int) $value,
+            is_int($default) || str_contains($key, '_days') || $key === 'mail.port' => (int) $value,
             default => trim((string) $value),
         };
     }

@@ -26,6 +26,7 @@ use App\Vault\Health\SsoConfigurationCheck;
 use App\Vault\Health\TrustedProxiesCheck;
 use App\Vault\Health\VaultKeyCheck;
 use App\Vault\RequestAttributes;
+use App\Vault\Settings\ApplyVaultSettings;
 use App\Vault\Settings\VaultSettings;
 use App\Vault\Sso\SsoLogout;
 use App\Vault\Tokens\AdminIpList;
@@ -74,6 +75,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->configureDefaults();
         $this->configureAuthorization();
+        $this->app->make(ApplyVaultSettings::class)->handle();
         $this->configureRateLimiting();
         $this->configureAuditListeners();
         $this->configureHealthChecks();
@@ -146,7 +148,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('vault-api', function (Request $request): Limit {
             $token = $request->attributes->get(RequestAttributes::ACCESS_TOKEN);
 
-            return Limit::perMinute((int) config('vault.api.rate_limit_per_minute'))
+            return Limit::perMinute(app(VaultSettings::class)->apiRateLimitPerMinute())
                 ->by('token:'.($token instanceof AccessToken ? $token->getKey() : ''))
                 ->response(function (Request $request, array $headers): JsonResponse {
                     $request->attributes->set(RequestAttributes::ACCESS_RESULT, AccessResult::RateLimited);
