@@ -38,6 +38,12 @@ enum AuditAction: string
     case AdminReactivated = 'admin_reactivated';
     case AuditLogPruned = 'audit_log_pruned';
     case PersonalDataExported = 'personal_data_exported';
+    case TokensRevokedInBulk = 'tokens_revoked_in_bulk';
+    case AdminsSignedOut = 'admins_signed_out';
+    case LockdownChanged = 'lockdown_changed';
+    case IncidentCreated = 'incident_created';
+    case IncidentUpdated = 'incident_updated';
+    case IncidentTimelineExported = 'incident_timeline_exported';
     case AdminPseudonymised = 'admin_pseudonymised';
     case BreakGlassLogin = 'break_glass_login';
 

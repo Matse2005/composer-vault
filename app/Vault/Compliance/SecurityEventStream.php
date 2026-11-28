@@ -26,16 +26,7 @@ class SecurityEventStream
 
     public function audit(AuditEntry $entry): void
     {
-        $this->write([
-            'type' => 'audit',
-            'time' => $this->time($entry->created_at),
-            'event' => $entry->event,
-            'sequence' => $entry->sequence,
-            'actor_id' => $entry->causer_id === null ? null : (int) $entry->causer_id,
-            'subject_type' => $entry->subject_type,
-            'subject_id' => $entry->subject_id === null ? null : (string) $entry->subject_id,
-            'ip' => $entry->ip,
-        ]);
+        $this->write(self::auditFields($entry));
     }
 
     /**
@@ -47,14 +38,43 @@ class SecurityEventStream
             return;
         }
 
-        $this->write([
+        $this->write(self::accessFields($log, $tokenPrefix, $projectSlug));
+    }
+
+    /**
+     * The fields of an audit entry in the stream, and in the timeline export of an incident.
+     *
+     * @return array<string, mixed>
+     */
+    public static function auditFields(AuditEntry $entry): array
+    {
+        return [
+            'type' => 'audit',
+            'time' => self::time($entry->created_at),
+            'event' => $entry->event,
+            'sequence' => $entry->sequence,
+            'actor_id' => $entry->causer_id === null ? null : (int) $entry->causer_id,
+            'subject_type' => $entry->subject_type,
+            'subject_id' => $entry->subject_id === null ? null : (string) $entry->subject_id,
+            'ip' => $entry->ip,
+        ];
+    }
+
+    /**
+     * The fields of an access log row in the stream, and in the timeline export of an incident.
+     *
+     * @return array<string, mixed>
+     */
+    public static function accessFields(AccessLog $log, ?string $tokenPrefix, ?string $projectSlug): array
+    {
+        return [
             'type' => 'access',
-            'time' => $this->time($log->created_at),
+            'time' => self::time($log->created_at),
             'result' => $log->result->value,
             'ip' => $log->ip,
             'token_prefix' => $tokenPrefix,
             'project_slug' => $projectSlug,
-        ]);
+        ];
     }
 
     /**
@@ -83,7 +103,7 @@ class SecurityEventStream
         }
     }
 
-    private function time(?DateTimeInterface $time): ?string
+    private static function time(?DateTimeInterface $time): ?string
     {
         return $time === null ? null : Carbon::instance($time)->utc()->format('Y-m-d\TH:i:s\Z');
     }

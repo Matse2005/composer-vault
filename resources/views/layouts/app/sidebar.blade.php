@@ -75,6 +75,11 @@
                     @endcan
                 </flux:sidebar.group>
                 <flux:sidebar.group :heading="__('Compliance')" class="grid">
+                    @can('compliance.manage')
+                    <flux:sidebar.item icon="exclamation-triangle" :href="route('incidents')" :current="request()->routeIs('incidents')" wire:navigate>
+                        {{ __('Incidents') }}
+                    </flux:sidebar.item>
+                    @endcan
                     @can('vault.view')
                     <flux:sidebar.item icon="document-text" :href="route('compliance.data-processing')" :current="request()->routeIs('compliance.data-processing')" wire:navigate>
                         {{ __('Data processing') }}
