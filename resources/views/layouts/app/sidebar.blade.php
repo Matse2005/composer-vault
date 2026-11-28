@@ -15,17 +15,17 @@
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
-                    @can('vault.view')
+                    @can('projects.view')
                     <flux:sidebar.item icon="folder" :href="route('projects.index')" :current="request()->routeIs('projects.*')" wire:navigate>
                         {{ __('Projects') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('vault.view')
+                    @can('credentials.view')
                     <flux:sidebar.item icon="key" :href="route('credentials.index')" :current="request()->routeIs('credentials.*')" wire:navigate>
                         {{ __('Credentials') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('vault.view')
+                    @can('tokens.view')
                     <flux:sidebar.item icon="ticket" :href="route('tokens.index')" :current="request()->routeIs('tokens.*')" wire:navigate>
                         {{ __('Tokens') }}
                     </flux:sidebar.item>
@@ -46,27 +46,57 @@
                 </flux:sidebar.group>
 
                 <flux:sidebar.group :heading="__('Administration')" class="grid">
-                    @can('admins.manage')
+                    @can('admins.view')
                     <flux:sidebar.item icon="users" :href="route('admins.index')" :current="request()->routeIs('admins.*')" wire:navigate>
                         {{ __('Admins') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('settings.manage')
+                    @can('roles.manage')
+                    <flux:sidebar.item icon="key" :href="route('roles.index')" :current="request()->routeIs('roles.index')" wire:navigate>
+                        {{ __('Roles') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('approval.manage')
+                    <flux:sidebar.item icon="check-badge" :href="route('settings.approvals')" :current="request()->routeIs('settings.approvals')" wire:navigate>
+                        {{ __('Approvals') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('settings.api')
+                    <flux:sidebar.item icon="code-bracket" :href="route('settings.api')" :current="request()->routeIs('settings.api')" wire:navigate>
+                        {{ __('API') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('settings.any')
+                    <flux:sidebar.item icon="clock" :href="route('settings.history')" :current="request()->routeIs('settings.history')" wire:navigate>
+                        {{ __('Settings history') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('settings.organisation')
                     <flux:sidebar.item icon="building-office" :href="route('settings.organisation')" :current="request()->routeIs('settings.organisation')" wire:navigate>
                         {{ __('Organisation') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('settings.sso')
                     <flux:sidebar.item icon="identification" :href="route('settings.sso')" :current="request()->routeIs('settings.sso')" wire:navigate>
                         {{ __('Single sign-on') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('settings.security')
                     <flux:sidebar.item icon="clock" :href="route('settings.access')" :current="request()->routeIs('settings.access')" wire:navigate>
                         {{ __('Access policy') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('settings.retention')
                     <flux:sidebar.item icon="archive-box" :href="route('settings.retention')" :current="request()->routeIs('settings.retention')" wire:navigate>
                         {{ __('Retention') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('settings.policies')
                     <flux:sidebar.item icon="scale" :href="route('settings.policies')" :current="request()->routeIs('settings.policies')" wire:navigate>
                         {{ __('Policies') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('settings.notifications')
                     <flux:sidebar.item icon="bell-alert" :href="route('settings.notifications')" :current="request()->routeIs('settings.notifications')" wire:navigate>
                         {{ __('Notifications') }}
                     </flux:sidebar.item>
@@ -78,22 +108,22 @@
                     @endcan
                 </flux:sidebar.group>
                 <flux:sidebar.group :heading="__('Compliance')" class="grid">
-                    @can('compliance.manage')
+                    @can('incidents.manage')
                     <flux:sidebar.item icon="exclamation-triangle" :href="route('incidents')" :current="request()->routeIs('incidents')" wire:navigate>
                         {{ __('Incidents') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('logs.view')
+                    @can('compliance.view')
                     <flux:sidebar.item icon="document-chart-bar" :href="route('compliance.report')" :current="request()->routeIs('compliance.report')" wire:navigate>
                         {{ __('Compliance report') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('access.review')
+                    @can('compliance.view')
                     <flux:sidebar.item icon="clipboard-document-check" :href="route('compliance.access-review')" :current="request()->routeIs('compliance.access-review')" wire:navigate>
                         {{ __('Access review') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('vault.view')
+                    @can('compliance.view')
                     <flux:sidebar.item icon="document-text" :href="route('compliance.data-processing')" :current="request()->routeIs('compliance.data-processing')" wire:navigate>
                         {{ __('Data processing') }}
                     </flux:sidebar.item>

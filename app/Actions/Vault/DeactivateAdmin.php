@@ -30,7 +30,7 @@ class DeactivateAdmin
      */
     public function handle(User $admin, User $actor): void
     {
-        Gate::forUser($actor)->authorize(Ability::ManageAdmins);
+        Gate::forUser($actor)->authorize(Ability::AdminsManage);
 
         if ($admin->is($actor)) {
             throw CannotDeactivateAdminException::yourself();

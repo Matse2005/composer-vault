@@ -25,7 +25,7 @@ class ExportAdminPersonalData
     public function handle(User $subject, User $actor): array
     {
         if (! $subject->is($actor)) {
-            Gate::forUser($actor)->authorize(Ability::ManageCompliance);
+            Gate::forUser($actor)->authorize(Ability::ComplianceManage);
         }
 
         $data = [

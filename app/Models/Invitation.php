@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property string $id
  * @property string $email
  * @property AdminRole $role
+ * @property string|null $custom_role_id
  * @property string $token_hash
  * @property int|null $invited_by
  * @property Carbon $expires_at
@@ -52,6 +53,14 @@ class Invitation extends Model
     public function inviter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'invited_by');
+    }
+
+    /**
+     * The role the invited person gets: a role made on the Roles page, or one of the system roles.
+     */
+    public function resolvedRole(): Role
+    {
+        return $this->custom_role_id !== null ? Role::query()->findOrFail($this->custom_role_id) : Role::forAdminRole($this->role);
     }
 
     /**

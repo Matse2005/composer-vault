@@ -24,7 +24,7 @@ class ExportIncidentTimeline
      */
     public function handle(Incident $incident, User $actor): array
     {
-        Gate::forUser($actor)->authorize(Ability::ManageCompliance);
+        Gate::forUser($actor)->authorize(Ability::IncidentsManage);
 
         $from = $incident->detected_at;
         $to = $incident->closed_at ?? now();

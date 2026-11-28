@@ -113,8 +113,10 @@ it('lets an auditor read the review but not complete it', function () {
     $this->get(route('compliance.access-review'))->assertOk()->assertDontSee('Complete the review');
     expect(fn () => app(CompleteAccessReview::class)->handle(null, $auditor))->toThrow(AuthorizationException::class);
 
-    $this->actingAs(User::factory()->withTwoFactor()->admin()->create());
-    $this->get(route('compliance.access-review'))->assertForbidden();
+    $admin = User::factory()->withTwoFactor()->admin()->create();
+    $this->actingAs($admin);
+    $this->get(route('compliance.access-review'))->assertOk()->assertDontSee('Complete the review');
+    expect(fn () => app(CompleteAccessReview::class)->handle(null, $admin))->toThrow(AuthorizationException::class);
 });
 
 it('requires an expiry within the policy when issuing a token', function () {

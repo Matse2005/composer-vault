@@ -2,11 +2,11 @@
 
 namespace App\Vault\Sso;
 
-use App\Enums\AdminRole;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\LastOwnerException;
 use App\Exceptions\Vault\SsoRejectedException;
 use App\Models\Invitation;
+use App\Models\Role;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\OwnerGuard;
@@ -95,6 +95,19 @@ class SsoSignIn
     }
 
     /**
+     * The claims of a valid ID token, for the test sign-in: the state, the code exchange and the token checks, without
+     * looking at roles, users or the second factor.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws SsoRejectedException
+     */
+    public function verifiedClaims(Request $request): array
+    {
+        return $this->claimsOf($request);
+    }
+
+    /**
      * Check the state, exchange the code and validate the ID token through the driver, and return the claims of the
      * token. The access and refresh token of the driver are never read and never stored.
      *
@@ -178,7 +191,7 @@ class SsoSignIn
      *
      * @throws SsoRejectedException
      */
-    private function resolveUser(array $claims, string $email, ?AdminRole $role): User
+    private function resolveUser(array $claims, string $email, ?Role $role): User
     {
         $issuer = $this->config->issuer();
         $subject = (string) $claims['sub'];
@@ -217,7 +230,7 @@ class SsoSignIn
         if ($invitation !== null) {
             $invitation->forceFill(['accepted_at' => now()])->save();
 
-            return $this->provision($claims, $email, $role ?? $invitation->role, $issuer, $subject, 'invitation');
+            return $this->provision($claims, $email, $role ?? $invitation->resolvedRole(), $issuer, $subject, 'invitation');
         }
 
         if (! $this->config->autoProvision() || $role === null) {
@@ -230,7 +243,7 @@ class SsoSignIn
     /**
      * @param  array<string, mixed>  $claims
      */
-    private function provision(array $claims, string $email, AdminRole $role, string $issuer, string $subject, string $source = 'sso'): User
+    private function provision(array $claims, string $email, Role $role, string $issuer, string $subject, string $source = 'sso'): User
     {
         $name = $claims['name'] ?? null;
 
@@ -239,15 +252,15 @@ class SsoSignIn
             'email' => $email,
             'password' => Str::random(64),
             'email_verified_at' => now(),
-            'role' => $role,
             'sso_issuer' => $issuer,
             'sso_subject' => $subject,
         ]);
+        $role->assignTo($user);
         $user->save();
 
-        $this->auditLogger->record(AuditAction::AdminProvisioned, $user, ['role' => $role, 'source' => $source], null);
+        $this->auditLogger->record(AuditAction::AdminProvisioned, $user, ['role' => $role->slug, 'source' => $source], null);
 
-        if ($role === AdminRole::Owner) {
+        if ($role->isOwner()) {
             DB::afterCommit(fn () => app(SecurityAlerts::class)->ownerChange($user, 'An Owner was provisioned', null));
         }
 
@@ -257,27 +270,28 @@ class SsoSignIn
     /**
      * Follow a change of role at the identity provider. The last active Owner is never demoted this way.
      */
-    private function applyRole(User $user, ?AdminRole $role): void
+    private function applyRole(User $user, ?Role $role): void
     {
-        if ($role === null || $user->role === $role) {
+        if ($role === null || ($user->role === $role->adminRole() && $user->custom_role_id === ($role->is_system ? null : $role->id))) {
             return;
         }
 
         DB::transaction(function () use ($user, $role): void {
             try {
-                if ($role !== AdminRole::Owner) {
+                if (! $role->isOwner()) {
                     OwnerGuard::assertAnotherActiveOwnerExists($user);
                 }
             } catch (LastOwnerException) {
                 return;
             }
 
-            $old = $user->role;
-            $user->forceFill(['role' => $role])->save();
+            $old = $user->customRole->slug ?? $user->role->value;
+            $role->assignTo($user);
+            $user->save();
 
-            $this->auditLogger->record(AuditAction::AdminRoleChanged, $user, ['old_role' => $old, 'new_role' => $role, 'source' => 'sso'], null);
+            $this->auditLogger->record(AuditAction::AdminRoleChanged, $user, ['old_role' => $old, 'new_role' => $role->slug, 'source' => 'sso'], null);
 
-            if ($role === AdminRole::Owner) {
+            if ($role->isOwner()) {
                 DB::afterCommit(fn () => app(SecurityAlerts::class)->ownerChange($user, 'Admin became an Owner through single sign-on', null));
             }
         });

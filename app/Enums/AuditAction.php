@@ -43,6 +43,12 @@ enum AuditAction: string
     case LockdownChanged = 'lockdown_changed';
     case IncidentCreated = 'incident_created';
     case AccessReviewCompleted = 'access_review_completed';
+    case RoleCreated = 'role_created';
+    case RoleChanged = 'role_changed';
+    case RoleDeleted = 'role_deleted';
+    case ChangeProposed = 'change_proposed';
+    case ChangeApproved = 'change_approved';
+    case ChangeRejected = 'change_rejected';
     case IncidentUpdated = 'incident_updated';
     case IncidentTimelineExported = 'incident_timeline_exported';
     case AdminPseudonymised = 'admin_pseudonymised';

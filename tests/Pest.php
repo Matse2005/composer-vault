@@ -1,8 +1,12 @@
 <?php
 
+use App\Enums\AuditAction;
 use App\Models\AccessToken;
 use App\Models\AuditEntry;
+use App\Models\Project;
+use App\Models\Role;
 use App\Models\User;
+use App\Vault\Audit\AuditLogger;
 use Database\Factories\AccessTokenFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Vite;
@@ -146,4 +150,46 @@ function finishSso(array $claims = [], ?string $state = null, bool $useNonce = t
 function lastRejection(): ?string
 {
     return AuditEntry::query()->where('event', 'sso_login_rejected')->latest('sequence')->first()?->properties['reason'] ?? null;
+}
+
+/**
+ * A user with a custom role holding exactly these permissions.
+ *
+ * @param  list<string>  $permissions
+ */
+function userWithPermissions(array $permissions, bool $twoFactor = true): User
+{
+    $role = Role::factory()->withPermissions($permissions)->create();
+    $user = $twoFactor ? User::factory()->withTwoFactor()->create() : User::factory()->create();
+    $role->assignTo($user);
+    $user->save();
+
+    return $user;
+}
+
+/**
+ * Read the state and nonce from the redirect the last response sent to the identity provider.
+ *
+ * @return array{state: string, nonce: string, url: string}
+ */
+function startSsoFromCurrentRedirect(): array
+{
+    $url = (string) test()->get(route('sso.test'))->headers->get('Location');
+    parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+    return ['state' => $query['state'], 'nonce' => $query['nonce'], 'url' => $url];
+}
+
+/**
+ * Write one audit entry per day for the given number of days, the oldest first, ending today.
+ */
+function auditDays(int $days): void
+{
+    $project = Project::factory()->create();
+
+    for ($daysAgo = $days - 1; $daysAgo >= 0; $daysAgo--) {
+        test()->travelTo(now()->subDays($daysAgo)->subHour());
+        app(AuditLogger::class)->record(AuditAction::ProjectUpdated, $project, ['day' => $daysAgo]);
+        test()->travelBack();
+    }
 }

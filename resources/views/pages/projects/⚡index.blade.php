@@ -66,7 +66,7 @@ new #[Title('Projects')] class extends Component {
     <div class="flex flex-wrap items-center justify-between gap-4">
         <flux:heading size="xl" level="1">{{ __('Projects') }}</flux:heading>
 
-        @can('vault.manage')
+        @can('projects.manage')
         <flux:button variant="primary" icon="plus" :href="route('projects.create')" wire:navigate>
             {{ __('New project') }}
         </flux:button>
@@ -82,7 +82,7 @@ new #[Title('Projects')] class extends Component {
             @else
                 <flux:text>{{ __('No projects yet. A project groups the credentials that a server or pipeline may fetch.') }}</flux:text>
                 <div class="mt-4">
-                    @can('vault.manage')
+                    @can('projects.manage')
                     <flux:button variant="primary" icon="plus" :href="route('projects.create')" wire:navigate>
                         {{ __('New project') }}
                     </flux:button>
@@ -112,7 +112,7 @@ new #[Title('Projects')] class extends Component {
                     @foreach ($this->projects as $project)
                         <tr wire:key="project-{{ $project->id }}">
                             <td class="px-4 py-2">
-                                @can('vault.manage')<flux:link :href="route('projects.show', $project)" wire:navigate>{{ $project->name }}</flux:link>@else{{ $project->name }}@endcan
+                                @can('projects.manage')<flux:link :href="route('projects.show', $project)" wire:navigate>{{ $project->name }}</flux:link>@else{{ $project->name }}@endcan
                             </td>
                             <td class="px-4 py-2 font-mono text-xs">{{ $project->slug }}</td>
                             <td class="px-4 py-2">{{ $project->credentials_count }}</td>

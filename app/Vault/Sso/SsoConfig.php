@@ -2,7 +2,7 @@
 
 namespace App\Vault\Sso;
 
-use App\Enums\AdminRole;
+use App\Models\Role;
 use App\Models\User;
 use App\Vault\Settings\VaultSettings;
 
@@ -93,17 +93,24 @@ class SsoConfig
     }
 
     /**
-     * The group names that give each role, in order of power (Owner first).
+     * The group names that give each role, in the order they are tried: Owner first, then the other roles with the
+     * most permissions first. A role gets its groups from the Roles page. For Owner, Admin and Auditor an environment
+     * variable (`VAULT_SSO_OWNER_GROUPS` and so on) overrides the page.
      *
-     * @return array<string, list<string>>
+     * @return list<array{role: Role, groups: list<string>}>
      */
     public function roleGroups(): array
     {
-        return [
-            AdminRole::Owner->value => $this->list((string) $this->settings->get('sso.owner_groups')),
-            AdminRole::Admin->value => $this->list((string) $this->settings->get('sso.admin_groups')),
-            AdminRole::Auditor->value => $this->list((string) $this->settings->get('sso.auditor_groups')),
-        ];
+        $rows = [];
+
+        foreach (Role::query()->get()->sortByDesc(fn (Role $role): int => $role->isOwner() ? PHP_INT_MAX : count($role->permissions)) as $role) {
+            $override = $role->is_system ? config('vault.sso.role_groups.'.$role->slug) : null;
+            $groups = filled($override) ? $this->list((string) $override) : $this->list(implode(',', (array) $role->sso_groups));
+
+            $rows[] = ['role' => $role, 'groups' => $groups];
+        }
+
+        return $rows;
     }
 
     /**
@@ -111,7 +118,7 @@ class SsoConfig
      */
     public function hasRoleMapping(): bool
     {
-        return array_filter($this->roleGroups()) !== [];
+        return array_filter($this->roleGroups(), fn (array $row): bool => $row['groups'] !== []) !== [];
     }
 
     /**

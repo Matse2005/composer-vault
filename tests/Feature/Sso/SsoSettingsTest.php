@@ -6,6 +6,7 @@ use App\Vault\Settings\VaultSettings;
 use App\Vault\Sso\SsoConfig;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
+use Tests\Support\FakeOidcProvider;
 
 beforeEach(function () {
     $this->owner = User::factory()->withTwoFactor()->create();
@@ -21,15 +22,16 @@ it('is off and incomplete until configured in the dashboard', function () {
 });
 
 it('reads the dashboard values and the stored secret', function () {
+    (new FakeOidcProvider)->fake();
     $settings = app(VaultSettings::class);
-    $settings->update(['sso.enabled' => true, 'sso.issuer' => 'https://idp.example.test', 'sso.client_id' => 'abc', 'sso.owner_groups' => 'a, b'], $this->owner);
+    $settings->update(['sso.enabled' => true, 'sso.issuer' => 'https://idp.example.test', 'sso.client_id' => 'abc'], $this->owner);
     $settings->setSecret('sso.client_secret', 'dashboard-secret', $this->owner);
 
     $sso = app(SsoConfig::class);
 
     expect($sso->isActive())->toBeTrue()
         ->and($sso->clientSecret())->toBe('dashboard-secret')
-        ->and($sso->roleGroups()['owner'])->toBe(['a', 'b']);
+        ->and($sso->hasRoleMapping())->toBeFalse();
 });
 
 it('lets an environment value win over the dashboard and lock the field', function () {
@@ -95,11 +97,12 @@ it('refuses other roles on the settings page', function (string $role) {
 })->with(['admin', 'auditor']);
 
 it('saves the settings and the secret from the page and empties the secret field', function () {
+    (new FakeOidcProvider)->fake();
+
     Livewire::test('pages::settings.sso')
         ->set('form.issuer', 'https://idp.example.test')
         ->set('form.client_id', 'vault-client')
         ->set('form.enabled', true)
-        ->set('form.owner_groups', 'vault-owners')
         ->set('clientSecret', 'page-secret')
         ->call('save')
         ->assertHasNoErrors()
@@ -110,7 +113,7 @@ it('saves the settings and the secret from the page and empties the secret field
     $sso = app(SsoConfig::class);
 
     expect($sso->isActive())->toBeTrue()->and($sso->clientSecret())->toBe('page-secret')
-        ->and($sso->roleGroups()['owner'])->toBe(['vault-owners']);
+        ->and($sso->isActive())->toBeTrue();
 });
 
 it('shows the validation message inline', function () {

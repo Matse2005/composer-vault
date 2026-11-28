@@ -10,11 +10,15 @@ use App\Actions\Vault\RevokeInvitation;
 use App\Enums\AdminRole;
 use App\Exceptions\Vault\BreakGlassNotAllowedException;
 use App\Exceptions\Vault\CannotDeactivateAdminException;
+use App\Exceptions\Vault\ChangeProposedException;
 use App\Exceptions\Vault\LastOwnerException;
 use App\Exceptions\Vault\PseudonymisationRefusedException;
+use App\Exceptions\Vault\RoleEscalationException;
 use App\Exceptions\Vault\InvitationNotAllowedException;
 use App\Models\Invitation;
+use App\Models\Role;
 use App\Models\User;
+use App\Vault\Authorization\RoleGuard;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
@@ -41,7 +45,7 @@ new #[Title('Admins')] class extends Component {
     #[Computed]
     public function activeAdmins(): Collection
     {
-        return User::query()->active()->withCount('passkeys')->orderBy('name')->get();
+        return User::query()->active()->with('customRole')->withCount('passkeys')->orderBy('name')->get();
     }
 
     /**
@@ -67,15 +71,40 @@ new #[Title('Admins')] class extends Component {
             ->get();
     }
 
+    /**
+     * The roles the current admin may give: every role whose permissions they hold themselves.
+     *
+     * @return Collection<int, Role>
+     */
+    #[Computed]
+    public function assignableRoles(): Collection
+    {
+        $actor = auth()->user();
+
+        return Role::query()->orderByDesc('is_system')->orderBy('name')->get()->filter(function (Role $role) use ($actor): bool {
+            try {
+                RoleGuard::assertMayAssign($actor, $role);
+
+                return true;
+            } catch (RoleEscalationException) {
+                return false;
+            }
+        })->values();
+    }
+
     public function invite(InviteAdmin $inviteAdmin): void
     {
         $validated = $this->validate([
             'email' => ['required', 'string', 'email:rfc', 'max:255'],
-            'role' => ['required', Rule::enum(AdminRole::class)],
+            'role' => ['required', Rule::exists('roles', 'slug')],
         ]);
 
         try {
-            $issued = $inviteAdmin->handle($validated['email'], auth()->user(), AdminRole::from($validated['role']));
+            $issued = $inviteAdmin->handle($validated['email'], auth()->user(), Role::query()->where('slug', $validated['role'])->firstOrFail());
+        } catch (RoleEscalationException $exception) {
+            $this->addError('role', $exception->getMessage());
+
+            return;
         } catch (InvitationNotAllowedException $exception) {
             $this->addError('email', $exception->getMessage());
 
@@ -110,7 +139,7 @@ new #[Title('Admins')] class extends Component {
 
     public function changeRole(int $userId, string $role, ChangeAdminRole $changeAdminRole): void
     {
-        $newRole = AdminRole::tryFrom($role);
+        $newRole = Role::query()->where('slug', $role)->first();
 
         if ($newRole === null) {
             return;
@@ -118,7 +147,12 @@ new #[Title('Admins')] class extends Component {
 
         try {
             $changeAdminRole->handle(User::query()->findOrFail($userId), $newRole, auth()->user());
-        } catch (LastOwnerException $exception) {
+        } catch (ChangeProposedException $exception) {
+            unset($this->activeAdmins);
+            Flux::toast($exception->getMessage());
+
+            return;
+        } catch (LastOwnerException|RoleEscalationException $exception) {
             $this->addError('deactivate', $exception->getMessage());
 
             return;
@@ -215,9 +249,9 @@ new #[Title('Admins')] class extends Component {
                             <td class="px-4 py-2">{{ $admin->name }}</td>
                             <td class="px-4 py-2">{{ $admin->email }}</td>
                             <td class="px-4 py-2">
-                                <flux:select size="sm" :value="$admin->role->value" wire:change="changeRole({{ $admin->id }}, $event.target.value)" :aria-label="__('Role of :name', ['name' => $admin->name])">
-                                    @foreach (\App\Enums\AdminRole::cases() as $roleOption)
-                                        <flux:select.option :value="$roleOption->value">{{ __($roleOption->label()) }}</flux:select.option>
+                                <flux:select size="sm" :value="$admin->customRole?->slug ?? $admin->role->value" wire:change="changeRole({{ $admin->id }}, $event.target.value)" :aria-label="__('Role of :name', ['name' => $admin->name])">
+                                    @foreach ($this->assignableRoles as $roleOption)
+                                        <flux:select.option :value="$roleOption->slug">{{ $roleOption->name }}</flux:select.option>
                                     @endforeach
                                 </flux:select>
                                 @if ($admin->is_break_glass)
@@ -291,7 +325,7 @@ new #[Title('Admins')] class extends Component {
                         @foreach ($this->invitations as $invitation)
                             <tr wire:key="invitation-{{ $invitation->id }}">
                                 <td class="px-4 py-2">{{ $invitation->email }}</td>
-                                <td class="px-4 py-2">{{ __($invitation->role->label()) }}</td>
+                                <td class="px-4 py-2">{{ $invitation->resolvedRole()->name }}</td>
                                 <td class="px-4 py-2">{{ $invitation->inviter?->name ?? '-' }}</td>
                                 <td class="px-4 py-2" title="{{ $invitation->expires_at }}">
                                     @if ($invitation->expires_at->isPast())
@@ -375,10 +409,11 @@ new #[Title('Admins')] class extends Component {
             <flux:input wire:model="email" type="email" :label="__('Email')" required />
 
             <flux:select wire:model="role" :label="__('Role')">
-                @foreach (\App\Enums\AdminRole::cases() as $roleOption)
-                    <flux:select.option :value="$roleOption->value">{{ __($roleOption->label()) }} - {{ __($roleOption->summary()) }}</flux:select.option>
+                @foreach ($this->assignableRoles as $roleOption)
+                    <flux:select.option :value="$roleOption->slug">{{ $roleOption->name }}</flux:select.option>
                 @endforeach
             </flux:select>
+            <flux:error name="role" />
 
             <div class="flex justify-end gap-2">
                 <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>

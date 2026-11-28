@@ -10,6 +10,7 @@ use App\Models\Incident;
 use App\Models\User;
 use App\Vault\Audit\AuditChainVerifier;
 use App\Vault\Health\HealthRunner;
+use App\Vault\Settings\SettingsRegistry;
 use App\Vault\Settings\VaultSettings;
 use App\Vault\Sso\SsoConfig;
 use Illuminate\Support\Carbon;
@@ -53,7 +54,7 @@ class ComplianceReport
     /**
      * The report as plain data for the JSON output.
      *
-     * @return array{disclaimer: string, version: string, controls: list<array{control: string, status: string, evidence: string, supports: string}>}
+     * @return array{disclaimer: string, version: string, controls: list<array{control: string, status: string, evidence: string, supports: string}>, settings: array<string, string>}
      */
     public function toArray(): array
     {
@@ -61,7 +62,27 @@ class ComplianceReport
             'disclaimer' => self::DISCLAIMER,
             'version' => (string) config('vault.version'),
             'controls' => array_map(fn (array $row): array => [...$row, 'status' => $row['status']->value], $this->controls()),
+            'settings' => $this->settingSources(),
         ];
+    }
+
+    /**
+     * The source of every security-relevant setting, so a reader can tell whether a control is set by the environment,
+     * the dashboard or a default.
+     *
+     * @return array<string, string>
+     */
+    public function settingSources(): array
+    {
+        $sources = [];
+
+        foreach (SettingsRegistry::all() as $key => $definition) {
+            if (str_starts_with($key, 'sso.') || str_starts_with($key, 'security.') || str_starts_with($key, 'retention.') || $key === 'admin.allowed_ips' || $key === 'approval.enabled') {
+                $sources[$key] = $this->settings->source($key);
+            }
+        }
+
+        return $sources;
     }
 
     /**

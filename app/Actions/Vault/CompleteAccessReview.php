@@ -21,7 +21,7 @@ class CompleteAccessReview
      */
     public function handle(?string $notes, User $actor): AccessReview
     {
-        Gate::forUser($actor)->authorize(Ability::ManageCompliance);
+        Gate::forUser($actor)->authorize(Ability::ComplianceManage);
 
         return DB::transaction(function () use ($notes, $actor): AccessReview {
             $review = (new AccessReview)->forceFill([

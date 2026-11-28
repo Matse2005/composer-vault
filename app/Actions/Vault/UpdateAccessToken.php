@@ -28,7 +28,7 @@ class UpdateAccessToken
      */
     public function handle(AccessToken $token, string $name, array $projectIds, ?array $allowedIps, ?CarbonImmutable $expiresAt): AccessToken
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::TokensManage);
 
         if ($token->expires_at?->getTimestamp() !== $expiresAt?->getTimestamp()) {
             TokenPolicy::assertAllows($expiresAt);

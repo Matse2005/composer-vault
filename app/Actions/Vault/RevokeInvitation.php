@@ -19,7 +19,7 @@ class RevokeInvitation
      */
     public function handle(Invitation $invitation): void
     {
-        Gate::authorize(Ability::ManageAdmins);
+        Gate::authorize(Ability::AdminsManage);
 
         if ($invitation->accepted_at !== null || $invitation->revoked_at !== null) {
             return;

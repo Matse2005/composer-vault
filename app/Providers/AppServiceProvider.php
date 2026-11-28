@@ -8,6 +8,7 @@ use App\Models\AccessToken;
 use App\Models\User;
 use App\Vault\Audit\AuditAuthenticationEvents;
 use App\Vault\Authorization\Ability;
+use App\Vault\Authorization\RolePermissions;
 use App\Vault\Compliance\NotificationTargets;
 use App\Vault\Crypto\EnvKeyProvider;
 use App\Vault\Crypto\KeyProvider;
@@ -21,11 +22,14 @@ use App\Vault\Health\KeyVersionsCheck;
 use App\Vault\Health\SecondFactorCheck;
 use App\Vault\Health\SecurityLogChannelCheck;
 use App\Vault\Health\SessionCheck;
+use App\Vault\Health\SettingsCheck;
 use App\Vault\Health\SodiumCheck;
 use App\Vault\Health\SsoConfigurationCheck;
 use App\Vault\Health\TrustedProxiesCheck;
 use App\Vault\Health\VaultKeyCheck;
 use App\Vault\RequestAttributes;
+use App\Vault\Settings\ApplyVaultSettings;
+use App\Vault\Settings\ChangeApproval;
 use App\Vault\Settings\VaultSettings;
 use App\Vault\Sso\SsoLogout;
 use App\Vault\Tokens\AdminIpList;
@@ -62,6 +66,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(KeyProvider::class, EnvKeyProvider::class);
         $this->app->scoped(VaultSettings::class);
+        $this->app->scoped(RolePermissions::class);
+        $this->app->scoped(ChangeApproval::class);
     }
 
     /**
@@ -74,6 +80,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->configureDefaults();
         $this->configureAuthorization();
+        $this->app->make(ApplyVaultSettings::class)->handle();
         $this->configureRateLimiting();
         $this->configureAuditListeners();
         $this->configureHealthChecks();
@@ -104,6 +111,7 @@ class AppServiceProvider extends ServiceProvider
             SsoConfigurationCheck::new(),
             SecurityLogChannelCheck::new(),
             AccessReviewCheck::new(),
+            SettingsCheck::new(),
         ]);
 
         if ($this->app->runningInConsole()) {
@@ -117,7 +125,9 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureAuthorization(): void
     {
-        foreach (Ability::all() as $ability) {
+        Gate::define('settings.any', fn (User $user): bool => $user->hasAbility(Ability::LogsView) || collect(Ability::all())->contains(fn (string $permission): bool => str_starts_with($permission, 'settings.') && $user->hasAbility($permission)));
+
+        foreach ([...Ability::all(), Ability::ApprovalManage] as $ability) {
             Gate::define($ability, fn (User $user): bool => $user->hasAbility($ability));
         }
     }
@@ -146,7 +156,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('vault-api', function (Request $request): Limit {
             $token = $request->attributes->get(RequestAttributes::ACCESS_TOKEN);
 
-            return Limit::perMinute((int) config('vault.api.rate_limit_per_minute'))
+            return Limit::perMinute(app(VaultSettings::class)->apiRateLimitPerMinute())
                 ->by('token:'.($token instanceof AccessToken ? $token->getKey() : ''))
                 ->response(function (Request $request, array $headers): JsonResponse {
                     $request->attributes->set(RequestAttributes::ACCESS_RESULT, AccessResult::RateLimited);

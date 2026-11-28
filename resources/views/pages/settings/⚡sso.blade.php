@@ -13,9 +13,6 @@ new #[Title('Single sign-on')] class extends Component {
         'scopes' => 'Scopes',
         'button_label' => 'Button label',
         'groups_claim' => 'Groups claim',
-        'owner_groups' => 'Owner groups',
-        'admin_groups' => 'Admin groups',
-        'auditor_groups' => 'Auditor groups',
         'allowed_email_domains' => 'Allowed email domains',
         'mfa_acr_values' => 'acr values that count as multi-factor',
     ];
@@ -56,10 +53,12 @@ new #[Title('Single sign-on')] class extends Component {
         }
 
         try {
-            $settings->update($values, auth()->user());
+            $pending = $settings->update($values, auth()->user());
 
             if ($this->clientSecret !== '' && ! $settings->secretIsFromEnvironment('sso.client_secret')) {
-                $settings->setSecret('sso.client_secret', $this->clientSecret, auth()->user());
+                if ($settings->setSecret('sso.client_secret', $this->clientSecret, auth()->user())) {
+                    $pending[] = 'sso.client_secret';
+                }
             }
         } catch (ValidationException $exception) {
             foreach ($exception->errors() as $key => $messages) {
@@ -71,7 +70,7 @@ new #[Title('Single sign-on')] class extends Component {
             $this->reset('clientSecret');
         }
 
-        Flux::toast(__('Single sign-on settings saved.'));
+        Flux::toast($pending === [] ? __('Single sign-on settings saved.') : __('Saved. :count critical change(s) wait for the approval of another Owner.', ['count' => count($pending)]));
     }
 
     public function clearSecret(VaultSettings $settings): void
@@ -122,6 +121,17 @@ new #[Title('Single sign-on')] class extends Component {
         </flux:text>
     </div>
 
+    @if (session('sso_test_passed'))
+        <flux:callout variant="success" icon="check-circle" data-test="test-passed"><flux:callout.text>{{ __('The test sign-in worked. You can turn on enforcement within 10 minutes.') }}</flux:callout.text></flux:callout>
+    @elseif (session('sso_test_failed'))
+        <flux:callout variant="danger" icon="x-circle" data-test="test-failed"><flux:callout.text>{{ __('The test sign-in did not work. Check the settings, and that you sign in with the same email address as your admin account.') }}</flux:callout.text></flux:callout>
+    @endif
+
+    <div class="flex items-center gap-3">
+        <flux:button :href="route('sso.test')" icon="beaker" :disabled="! app(\App\Vault\Sso\SsoConfig::class)->isComplete()">{{ __('Test sign-in') }}</flux:button>
+        <flux:text class="text-xs">{{ __('Save the settings first. Signs you in at the provider without logging you in again.') }}</flux:text>
+    </div>
+
     <form wire:submit="save" class="space-y-6">
         @foreach ($this->switchFields() as $field => $label)
             <div wire:key="switch-{{ $field }}">
@@ -129,6 +139,7 @@ new #[Title('Single sign-on')] class extends Component {
                 @if ($this->isLocked($field))
                     <flux:text class="mt-1 text-xs">{{ __('Set by the environment.') }}</flux:text>
                 @endif
+                <flux:error name="form.{{ $field }}" />
             </div>
         @endforeach
 

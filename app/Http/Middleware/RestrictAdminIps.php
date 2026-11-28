@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Vault\Settings\VaultSettings;
 use App\Vault\Tokens\AdminIpList;
 use App\Vault\Tokens\IpAllowlist;
 use Closure;
@@ -17,11 +18,21 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class RestrictAdminIps
 {
+    public const RESTRICTED_ATTRIBUTE = 'vault.ip_restricted';
+
     public function handle(Request $request, Closure $next): Response
     {
-        $allowedIps = AdminIpList::parse(config('vault.admin.allowed_ips'));
+        $allowedIps = AdminIpList::parse(app(VaultSettings::class)->get('admin.allowed_ips'));
 
         if ($allowedIps === [] || IpAllowlist::allows($allowedIps, (string) $request->ip())) {
+            return $next($request);
+        }
+
+        // Break-glass Owners may bypass the list when the setting is on. Who is asking is only known after the session
+        // starts, so mark the request and let EnforceBreakGlassForRestrictedIps decide.
+        if ((bool) app(VaultSettings::class)->get('security.break_glass_bypasses_ip_allowlist')) {
+            $request->attributes->set(self::RESTRICTED_ATTRIBUTE, true);
+
             return $next($request);
         }
 

@@ -44,7 +44,7 @@ new #[Title('Tokens')] class extends Component {
     <div class="flex flex-wrap items-center justify-between gap-4">
         <flux:heading size="xl" level="1">{{ __('Tokens') }}</flux:heading>
 
-        @can('vault.manage')
+        @can('tokens.manage')
         <flux:button variant="primary" icon="plus" :href="route('tokens.create')" wire:navigate>
             {{ __('New token') }}
         </flux:button>
@@ -65,7 +65,7 @@ new #[Title('Tokens')] class extends Component {
             @else
                 <flux:text>{{ __('No tokens yet. A token lets one server or pipeline fetch the credentials of its projects.') }}</flux:text>
                 <div class="mt-4">
-                    @can('vault.manage')
+                    @can('tokens.manage')
                     <flux:button variant="primary" icon="plus" :href="route('tokens.create')" wire:navigate>
                         {{ __('New token') }}
                     </flux:button>
@@ -90,7 +90,7 @@ new #[Title('Tokens')] class extends Component {
                     @foreach ($this->tokens as $token)
                         <tr wire:key="token-{{ $token->id }}">
                             <td class="px-4 py-2">
-                                @can('vault.manage')<flux:link :href="route('tokens.show', $token)" wire:navigate>{{ $token->name }}</flux:link>@else{{ $token->name }}@endcan
+                                @can('tokens.manage')<flux:link :href="route('tokens.show', $token)" wire:navigate>{{ $token->name }}</flux:link>@else{{ $token->name }}@endcan
                             </td>
                             <td class="px-4 py-2 font-mono text-xs">cv_{{ $token->token_prefix }}...</td>
                             <td class="px-4 py-2">{{ $token->projects->pluck('slug')->implode(', ') ?: '-' }}</td>

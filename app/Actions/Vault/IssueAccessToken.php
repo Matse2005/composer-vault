@@ -37,7 +37,7 @@ class IssueAccessToken
      */
     public function handle(string $name, array $projectIds, ?array $allowedIps, ?CarbonImmutable $expiresAt, ?User $creator): IssuedToken
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::TokensManage);
         TokenPolicy::assertAllows($expiresAt);
 
         $allowedIps = IpAllowlist::normalizeList($allowedIps);

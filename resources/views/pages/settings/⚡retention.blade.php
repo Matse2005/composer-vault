@@ -3,6 +3,7 @@
 use App\Models\AuditEntry;
 use App\Vault\Settings\VaultSettings;
 use Flux\Flux;
+use App\Exceptions\Vault\LockoutGuardException;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -13,6 +14,12 @@ new #[Title('Retention')] class extends Component {
     public string $auditLogDays = '';
 
     public string $invitationDays = '';
+
+    public ?string $retentionWarning = null;
+
+    public ?string $retentionWord = null;
+
+    public string $typedConfirmation = '';
 
     public function mount(VaultSettings $settings): void
     {
@@ -31,16 +38,28 @@ new #[Title('Retention')] class extends Component {
         return $days < 1 ? 0 : AuditEntry::query()->where('created_at', '<', now()->subDays($days))->count();
     }
 
-    public function save(VaultSettings $settings): void
+    public function saveConfirmed(VaultSettings $settings): void
+    {
+        $this->save($settings, $this->typedConfirmation);
+    }
+
+    public function save(VaultSettings $settings, ?string $typed = null): void
     {
         $this->resetErrorBag();
+        $this->retentionWarning = null;
 
         try {
-            $settings->update([
+            $pending = $settings->update([
                 'retention.access_log_days' => $this->accessLogDays,
                 'retention.audit_log_days' => $this->auditLogDays,
                 'retention.invitation_days' => $this->invitationDays,
-            ], auth()->user());
+            ], auth()->user(), ['retention.audit_log_days' => $typed]);
+        } catch (LockoutGuardException $exception) {
+            $this->retentionWarning = $exception->getMessage();
+            $this->retentionWord = $exception->word;
+            Flux::modal('confirm-retention')->show();
+
+            return;
         } catch (ValidationException $exception) {
             $fields = ['retention.access_log_days' => 'accessLogDays', 'retention.audit_log_days' => 'auditLogDays', 'retention.invitation_days' => 'invitationDays'];
 
@@ -51,7 +70,7 @@ new #[Title('Retention')] class extends Component {
             return;
         }
 
-        Flux::toast(__('Retention saved.'));
+        Flux::toast($pending === [] ? __('Retention saved.') : __('Saved. :count critical change(s) wait for the approval of another Owner.', ['count' => count($pending)]));
     }
 }; ?>
 
@@ -86,4 +105,18 @@ new #[Title('Retention')] class extends Component {
 
         <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
     </form>
+
+    <flux:modal name="confirm-retention" class="min-w-[22rem] max-w-md">
+        <form wire:submit="saveConfirmed" class="space-y-6">
+            <div>
+                <flux:heading size="lg">{{ __('Delete audit entries?') }}</flux:heading>
+                <flux:text class="mt-2" data-test="retention-warning">{{ $retentionWarning }}</flux:text>
+            </div>
+            <flux:input wire:model="typedConfirmation" :label="__('Type :word to confirm', ['word' => $retentionWord])" autocomplete="off" />
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="danger">{{ __('Save and delete later') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 </section>

@@ -20,7 +20,7 @@ class SaveIncident
      */
     public function handle(?Incident $incident, string $title, DateTimeInterface $detectedAt, ?DateTimeInterface $closedAt, ?string $notes, User $actor): Incident
     {
-        Gate::forUser($actor)->authorize(Ability::ManageCompliance);
+        Gate::forUser($actor)->authorize(Ability::IncidentsManage);
 
         return DB::transaction(function () use ($incident, $title, $detectedAt, $closedAt, $notes, $actor): Incident {
             $creating = $incident === null;

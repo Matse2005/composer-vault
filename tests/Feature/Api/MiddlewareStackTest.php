@@ -7,6 +7,7 @@ use App\Http\Middleware\RecordVaultAccess;
 use App\Http\Middleware\SetNoStoreHeaders;
 use App\Models\AccessLog;
 use App\Models\AccessToken;
+use App\Vault\Settings\VaultSettings;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Route;
@@ -230,6 +231,6 @@ it('runs the stack in the documented order after Laravel has sorted the middlewa
 });
 
 it('uses the default limits of 60 requests and 10 failures a minute', function () {
-    expect(config('vault.api.rate_limit_per_minute'))->toBe(60)
-        ->and(config('vault.api.failed_attempts_per_minute'))->toBe(10);
+    expect(app(VaultSettings::class)->apiRateLimitPerMinute())->toBe(60)
+        ->and(app(VaultSettings::class)->apiFailedAttemptsPerMinute())->toBe(10);
 });

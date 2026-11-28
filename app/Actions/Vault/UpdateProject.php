@@ -20,7 +20,7 @@ class UpdateProject
      */
     public function handle(Project $project, array $attributes): Project
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::ProjectsManage);
 
         return DB::transaction(function () use ($project, $attributes): Project {
             $project->fill($attributes);

@@ -42,6 +42,7 @@ class AcceptInvitation
                 'name' => $name,
                 'email' => $invitation->email,
                 'role' => $invitation->role,
+                'custom_role_id' => $invitation->custom_role_id,
                 'is_break_glass' => $enforced,
                 'password' => $password,
                 'email_verified_at' => now(),
