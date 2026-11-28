@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
+    if (app()->environment('local')) {
+        Route::view('_styleguide', 'styleguide')->name('styleguide');
+    }
+
     Route::livewire('projects', 'pages::projects.index')->name('projects.index')->middleware('can:'.Ability::ProjectsView);
 
     Route::livewire('projects/create', 'pages::projects.create')->name('projects.create')->middleware('can:'.Ability::ProjectsManage);
