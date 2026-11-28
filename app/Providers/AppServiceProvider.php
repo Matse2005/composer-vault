@@ -21,6 +21,7 @@ use App\Vault\Health\SodiumCheck;
 use App\Vault\Health\TrustedProxiesCheck;
 use App\Vault\Health\VaultKeyCheck;
 use App\Vault\RequestAttributes;
+use App\Vault\Settings\VaultSettings;
 use App\Vault\Tokens\AdminIpList;
 use App\Vault\Tokens\TrustedProxyList;
 use Carbon\CarbonImmutable;
@@ -53,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(KeyProvider::class, EnvKeyProvider::class);
+        $this->app->scoped(VaultSettings::class);
     }
 
     /**

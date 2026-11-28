@@ -39,6 +39,9 @@
                     <flux:sidebar.item icon="users" :href="route('admins.index')" :current="request()->routeIs('admins.*')" wire:navigate>
                         {{ __('Admins') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="building-office" :href="route('settings.organisation')" :current="request()->routeIs('settings.organisation')" wire:navigate>
+                        {{ __('Organisation') }}
+                    </flux:sidebar.item>
                     <flux:sidebar.item icon="shield-exclamation" :href="route('security-status')" :current="request()->routeIs('security-status')" wire:navigate>
                         {{ __('Security status') }}
                     </flux:sidebar.item>

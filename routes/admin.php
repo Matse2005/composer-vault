@@ -30,4 +30,6 @@ Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
 
     Route::livewire('admins', 'pages::admins.index')->name('admins.index');
     Route::livewire('security-status', 'pages::security-status')->name('security-status');
+
+    Route::livewire('admin-settings/organisation', 'pages::settings.organisation')->name('settings.organisation');
 });
