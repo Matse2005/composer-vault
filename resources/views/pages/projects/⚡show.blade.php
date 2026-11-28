@@ -147,7 +147,7 @@ new #[Title('Project')] class extends Component {
 }; ?>
 
 <section class="w-full max-w-5xl space-y-10">
-    <div class="space-y-4 rounded-xl bg-zinc-100 p-6 dark:bg-zinc-800/60">
+    <div class="space-y-4 rounded-panel bg-accent-soft p-6">
         <flux:breadcrumbs>
             <flux:breadcrumbs.item :href="route('projects.index')" wire:navigate>{{ __('Projects') }}</flux:breadcrumbs.item>
             <flux:breadcrumbs.item>{{ $this->project->name }}</flux:breadcrumbs.item>
@@ -205,14 +205,14 @@ new #[Title('Project')] class extends Component {
             <flux:heading size="lg" level="2">{{ __('Server tokens') }}</flux:heading>
 
             @forelse ($this->tokens as $token)
-                <div wire:key="token-{{ $token->id }}" class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 px-4 py-3 dark:border-zinc-700">
+                <div wire:key="token-{{ $token->id }}" class="flex flex-wrap items-center justify-between gap-3 rounded-panel border border-border px-4 py-3">
                     <div>
                         @can('tokens.manage')
                             <flux:link :href="route('tokens.show', [$this->project, $token])" wire:navigate class="font-medium">{{ $token->name }}</flux:link>
                         @else
                             <span class="font-medium">{{ $token->name }}</span>
                         @endcan
-                        <div class="text-xs text-zinc-600 dark:text-zinc-400">{{ $token->last_used_at ? __('used :time', ['time' => $token->last_used_at->diffForHumans()]) : __('never used') }}</div>
+                        <div class="text-xs text-ink-muted">{{ $token->last_used_at ? __('used :time', ['time' => $token->last_used_at->diffForHumans()]) : __('never used') }}</div>
                     </div>
                     <span class="text-sm">
                         <x-vault.status-badge :status="$token->isRevoked() ? 'revoked' : ($token->isExpired() ? 'expired' : 'active')" />                    </span>
@@ -281,7 +281,7 @@ new #[Title('Project')] class extends Component {
             <flux:button type="submit" variant="primary">{{ __('Save') }}</flux:button>
         </form>
 
-        <div class="space-y-4 rounded-xl border border-red-200 p-5 dark:border-red-900">
+        <div class="space-y-4 rounded-panel border border-danger/30 p-5">
             <flux:heading size="lg" level="2">{{ __('Delete project') }}</flux:heading>
             <flux:text>{{ __('The credentials and the server tokens of this project are deleted with it.') }}</flux:text>
 
@@ -309,7 +309,7 @@ new #[Title('Project')] class extends Component {
         <div class="space-y-4">
             <flux:heading size="lg">{{ __('Use in composer.json') }}</flux:heading>
             <flux:text>{{ __('Give the server a token of this project in COMPOSER_VAULT_TOKEN, then fetch the credentials:') }}</flux:text>
-            <pre class="overflow-x-auto rounded-lg bg-zinc-100 p-3 font-mono text-xs dark:bg-zinc-900" data-test="curl-line">export COMPOSER_AUTH=$(curl -fsS -H "Authorization: Bearer $COMPOSER_VAULT_TOKEN" {{ $this->appUrl() }}/api/v1/projects/{{ $this->project->slug }}/composer-auth)</pre>
+            <pre class="overflow-x-auto rounded-card bg-surface-hover p-3 font-mono text-xs" data-test="curl-line">export COMPOSER_AUTH=$(curl -fsS -H "Authorization: Bearer $COMPOSER_VAULT_TOKEN" {{ $this->appUrl() }}/api/v1/projects/{{ $this->project->slug }}/composer-auth)</pre>
         </div>
     </flux:modal>
 </section>

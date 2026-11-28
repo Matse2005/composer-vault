@@ -122,13 +122,13 @@ new #[Title('Access log')] class extends Component {
     </div>
 
     @if ($this->logs->isEmpty())
-        <div class="rounded-xl border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-600">
+        <div class="rounded-panel border border-dashed border-border-strong p-10 text-center">
             <flux:text>{{ __('No requests match. The API writes one row for every request to the composer-auth endpoint.') }}</flux:text>
         </div>
     @else
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="overflow-x-auto rounded-panel border border-border">
             <table class="w-full text-start text-sm">
-                <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                <thead class="bg-surface-sunken text-ink-muted">
                     <tr>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Time') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Result') }}</th>
@@ -138,7 +138,7 @@ new #[Title('Access log')] class extends Component {
                         <th class="px-4 py-2 text-start font-medium">{{ __('User agent') }}</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody class="divide-y divide-border">
                     @foreach ($this->logs as $log)
                         <tr wire:key="log-{{ $log->id }}">
                             <td class="px-4 py-2" title="{{ $log->created_at }}">{{ $log->created_at->diffForHumans() }}</td>

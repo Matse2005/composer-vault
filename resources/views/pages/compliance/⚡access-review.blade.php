@@ -69,9 +69,9 @@ new #[Title('Access review')] class extends Component {
 
     <div class="space-y-3">
         <flux:heading size="lg" level="2">{{ __('Admins') }}</flux:heading>
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="overflow-x-auto rounded-panel border border-border">
             <table class="w-full text-start text-sm">
-                <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                <thead class="bg-surface-sunken text-ink-muted">
                     <tr>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Name') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Role') }}</th>
@@ -81,7 +81,7 @@ new #[Title('Access review')] class extends Component {
                         <th class="px-4 py-2 text-start font-medium">{{ __('Status') }}</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody class="divide-y divide-border">
                     @foreach ($this->admins as $admin)
                         <tr wire:key="admin-{{ $admin->id }}">
                             <td class="px-4 py-2">{{ $admin->name }}</td>
@@ -104,7 +104,7 @@ new #[Title('Access review')] class extends Component {
     <div class="space-y-3">
         <flux:heading size="lg" level="2">{{ __('Tokens that need a look') }}</flux:heading>
         @forelse ($this->tokens as $row)
-            <div wire:key="token-{{ $row['token']->id }}" class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 px-4 py-2 dark:border-zinc-700">
+            <div wire:key="token-{{ $row['token']->id }}" class="flex flex-wrap items-center justify-between gap-2 rounded-card border border-border px-4 py-2">
                 <span class="font-medium">{{ $row['token']->name }} <span class="font-mono text-xs">cv_{{ $row['token']->token_prefix }}...</span></span>
                 <span class="flex flex-wrap gap-1">
                     @foreach ($row['reasons'] as $reason)
@@ -120,7 +120,7 @@ new #[Title('Access review')] class extends Component {
     <div class="space-y-3">
         <flux:heading size="lg" level="2">{{ __('Credentials due for rotation') }}</flux:heading>
         @forelse ($this->credentials as $credential)
-            <div wire:key="credential-{{ $credential->id }}" class="flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-2 dark:border-zinc-700">
+            <div wire:key="credential-{{ $credential->id }}" class="flex items-center justify-between rounded-card border border-border px-4 py-2">
                 <span class="font-medium">{{ $credential->name }} <span class="text-xs">({{ $credential->host }})</span></span>
                 <span class="text-sm">{{ __('Secret last changed :time', ['time' => $credential->secret_changed_at->diffForHumans()]) }}</span>
             </div>
@@ -130,7 +130,7 @@ new #[Title('Access review')] class extends Component {
     </div>
 
     @can('compliance.manage')
-        <form wire:submit="complete" class="space-y-4 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+        <form wire:submit="complete" class="space-y-4 rounded-panel border border-border p-5">
             <flux:heading size="lg" level="2">{{ __('Complete the review') }}</flux:heading>
             <flux:textarea wire:model="notes" rows="4" :label="__('Notes')" :description="__('Notes are not written to the audit log. Keep names out of them when you can.')" />
             <flux:button type="submit" variant="primary">{{ __('Complete review') }}</flux:button>
@@ -140,7 +140,7 @@ new #[Title('Access review')] class extends Component {
     <div class="space-y-3">
         <flux:heading size="lg" level="2">{{ __('Previous reviews') }}</flux:heading>
         @forelse ($this->reviews as $review)
-            <div wire:key="review-{{ $review->id }}" class="rounded-lg border border-zinc-200 px-4 py-2 text-sm dark:border-zinc-700">
+            <div wire:key="review-{{ $review->id }}" class="rounded-card border border-border px-4 py-2 text-sm">
                 <span class="font-medium" title="{{ $review->completed_at }}">{{ $review->completed_at->format('Y-m-d') }}</span>
                 {{ __('by :name', ['name' => $review->completedBy?->name ?? __('a removed admin')]) }}:
                 {{ collect($review->snapshot)->map(fn ($count, $key) => str_replace('_', ' ', $key).' '.$count)->implode(', ') }}

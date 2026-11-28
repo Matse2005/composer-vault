@@ -231,9 +231,9 @@ new #[Title('Admins')] class extends Component {
     <div class="space-y-4">
         <flux:heading size="lg" level="2">{{ __('Active admins') }}</flux:heading>
 
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="overflow-x-auto rounded-panel border border-border">
             <table class="w-full text-start text-sm">
-                <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                <thead class="bg-surface-sunken text-ink-muted">
                     <tr>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Name') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Email') }}</th>
@@ -243,7 +243,7 @@ new #[Title('Admins')] class extends Component {
                         <th class="px-4 py-2"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody class="divide-y divide-border">
                     @foreach ($this->activeAdmins as $admin)
                         <tr wire:key="admin-{{ $admin->id }}">
                             <td class="px-4 py-2">{{ $admin->name }}</td>
@@ -310,9 +310,9 @@ new #[Title('Admins')] class extends Component {
         @if ($this->invitations->isEmpty())
             <flux:text>{{ __('There are no pending invitations.') }}</flux:text>
         @else
-            <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="overflow-x-auto rounded-panel border border-border">
                 <table class="w-full text-start text-sm">
-                    <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                    <thead class="bg-surface-sunken text-ink-muted">
                         <tr>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Email') }}</th>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Role') }}</th>
@@ -321,7 +321,7 @@ new #[Title('Admins')] class extends Component {
                             <th class="px-4 py-2"></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                    <tbody class="divide-y divide-border">
                         @foreach ($this->invitations as $invitation)
                             <tr wire:key="invitation-{{ $invitation->id }}">
                                 <td class="px-4 py-2">{{ $invitation->email }}</td>
@@ -349,9 +349,9 @@ new #[Title('Admins')] class extends Component {
         <div class="space-y-4">
             <flux:heading size="lg" level="2">{{ __('Deactivated admins') }}</flux:heading>
 
-            <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="overflow-x-auto rounded-panel border border-border">
                 <table class="w-full text-start text-sm">
-                    <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                    <thead class="bg-surface-sunken text-ink-muted">
                         <tr>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Name') }}</th>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Email') }}</th>
@@ -359,7 +359,7 @@ new #[Title('Admins')] class extends Component {
                             <th class="px-4 py-2"></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                    <tbody class="divide-y divide-border">
                         @foreach ($this->deactivatedAdmins as $admin)
                             <tr wire:key="deactivated-{{ $admin->id }}">
                                 <td class="px-4 py-2">{{ $admin->name }}</td>

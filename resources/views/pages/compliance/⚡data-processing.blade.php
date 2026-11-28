@@ -57,9 +57,9 @@ new #[Title('Data processing')] class extends Component {
         </flux:text>
     </div>
 
-    <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+    <div class="overflow-x-auto rounded-panel border border-border">
         <table class="w-full text-start text-sm">
-            <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+            <thead class="bg-surface-sunken text-ink-muted">
                 <tr>
                     <th class="px-4 py-2 text-start font-medium">{{ __('Category') }}</th>
                     <th class="px-4 py-2 text-start font-medium">{{ __('Data') }}</th>
@@ -67,7 +67,7 @@ new #[Title('Data processing')] class extends Component {
                     <th class="px-4 py-2 text-start font-medium">{{ __('Kept for') }}</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+            <tbody class="divide-y divide-border">
                 @foreach ($this->categories() as $row)
                     <tr wire:key="category-{{ $loop->index }}">
                         <td class="px-4 py-2 font-medium">{{ __($row['category']) }}</td>

@@ -78,7 +78,7 @@ new #[Title('Projects')] class extends Component {
     <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" :placeholder="__('Search on name or slug')" clearable />
 
     @if ($this->projects->isEmpty())
-        <div class="rounded-xl border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-600">
+        <div class="rounded-panel border border-dashed border-border-strong p-10 text-center">
             @if (trim($search) !== '')
                 <flux:text>{{ __('No projects match your search.') }}</flux:text>
             @else
@@ -93,9 +93,9 @@ new #[Title('Projects')] class extends Component {
             @endif
         </div>
     @else
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="overflow-x-auto rounded-panel border border-border">
             <table class="w-full text-start text-sm">
-                <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                <thead class="bg-surface-sunken text-ink-muted">
                     <tr>
                         <th class="px-4 py-2 text-start font-medium">
                             <button type="button" wire:click="sort('name')" class="cursor-pointer font-medium">{{ __('Name') }}</button>
@@ -111,7 +111,7 @@ new #[Title('Projects')] class extends Component {
                         </th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody class="divide-y divide-border">
                     @foreach ($this->projects as $project)
                         <tr wire:key="project-{{ $project->id }}">
                             <td class="px-4 py-2">

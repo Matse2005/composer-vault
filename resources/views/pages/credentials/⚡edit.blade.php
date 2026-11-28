@@ -117,7 +117,7 @@ new #[Title('Credential')] class extends Component {
     </form>
 
     @if ($this->otherProjects->isNotEmpty())
-        <form wire:submit="move" class="space-y-4 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+        <form wire:submit="move" class="space-y-4 rounded-panel border border-border p-5">
             <flux:heading size="lg" level="2">{{ __('Move to another project') }}</flux:heading>
             <flux:text>{{ __('The secret moves with the credential and stays unchanged. The target project must not have a credential for this host yet.') }}</flux:text>
 
@@ -133,7 +133,7 @@ new #[Title('Credential')] class extends Component {
         </form>
     @endif
 
-    <div class="space-y-4 rounded-xl border border-red-200 p-5 dark:border-red-900">
+    <div class="space-y-4 rounded-panel border border-danger/30 p-5">
         <flux:heading size="lg" level="2">{{ __('Delete credential') }}</flux:heading>
         <flux:text>{{ __('Servers that fetch this project stop receiving this credential.') }}</flux:text>
 
