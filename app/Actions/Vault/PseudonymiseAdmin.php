@@ -25,7 +25,7 @@ class PseudonymiseAdmin
      */
     public function handle(User $admin, User $actor): void
     {
-        Gate::forUser($actor)->authorize(Ability::ManageCompliance);
+        Gate::forUser($actor)->authorize(Ability::ComplianceManage);
 
         DB::transaction(function () use ($admin, $actor): void {
             $admin->refresh();

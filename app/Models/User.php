@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AdminRole;
-use App\Vault\Authorization\Ability;
+use App\Vault\Authorization\RolePermissions;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -24,6 +25,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string $name
  * @property string $email
  * @property AdminRole $role
+ * @property string|null $custom_role_id
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $two_factor_secret
@@ -75,6 +77,14 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * @return BelongsTo<Role, $this>
+     */
+    public function customRole(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'custom_role_id');
+    }
+
+    /**
      * Limit a query to active admins with a role.
      *
      * @param  Builder<User>  $query
@@ -90,7 +100,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
      */
     public function hasAbility(string $ability): bool
     {
-        return ! $this->isDeactivated() && in_array($this->role, Ability::rolesFor($ability), true);
+        return ! $this->isDeactivated() && app(RolePermissions::class)->allows($this, $ability);
     }
 
     /**

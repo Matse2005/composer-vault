@@ -9,7 +9,6 @@ use App\Exceptions\Vault\InvalidAdminIpAllowlistException;
 use App\Models\User;
 use App\Models\VaultSetting;
 use App\Vault\Audit\AuditLogger;
-use App\Vault\Authorization\Ability;
 use App\Vault\Compliance\SecurityAlerts;
 use App\Vault\Crypto\EncryptedSecret;
 use App\Vault\Crypto\SecretCipher;
@@ -95,9 +94,6 @@ class VaultSettings
             'sso.scopes' => ['required', 'string', 'max:255'],
             'sso.button_label' => ['required', 'string', 'max:60'],
             'sso.groups_claim' => ['required', 'string', 'max:100'],
-            'sso.owner_groups' => ['nullable', 'string', 'max:1000'],
-            'sso.admin_groups' => ['nullable', 'string', 'max:1000'],
-            'sso.auditor_groups' => ['nullable', 'string', 'max:1000'],
             'sso.allowed_email_domains' => ['nullable', 'string', 'max:1000'],
             'sso.auto_provision' => ['boolean'],
             'sso.enforce' => ['boolean'],
@@ -149,9 +145,6 @@ class VaultSettings
             'sso.scopes' => 'openid email profile',
             'sso.button_label' => 'Sign in with SSO',
             'sso.groups_claim' => 'groups',
-            'sso.owner_groups' => null,
-            'sso.admin_groups' => null,
-            'sso.auditor_groups' => null,
             'sso.allowed_email_domains' => null,
             'sso.auto_provision' => false,
             'sso.enforce' => false,
@@ -190,9 +183,6 @@ class VaultSettings
             'sso.scopes' => 'vault.sso.scopes',
             'sso.button_label' => 'vault.sso.button_label',
             'sso.groups_claim' => 'vault.sso.groups_claim',
-            'sso.owner_groups' => 'vault.sso.role_groups.owner',
-            'sso.admin_groups' => 'vault.sso.role_groups.admin',
-            'sso.auditor_groups' => 'vault.sso.role_groups.auditor',
             'sso.allowed_email_domains' => 'vault.sso.allowed_email_domains',
             'sso.auto_provision' => 'vault.sso.auto_provision',
             'sso.enforce' => 'vault.sso.enforce',
@@ -315,13 +305,15 @@ class VaultSettings
      */
     public function update(array $values, User $actor): void
     {
-        Gate::forUser($actor)->authorize(Ability::ManageSettings);
-
         $rules = self::rules();
         $unknown = array_diff(array_keys($values), array_keys($rules));
 
         if ($unknown !== []) {
             throw ValidationException::withMessages([array_values($unknown)[0] => __('This setting does not exist.')]);
+        }
+
+        foreach (array_keys($values) as $key) {
+            Gate::forUser($actor)->authorize(SettingsRegistry::get($key)->permission);
         }
 
         $validated = $this->validate($values, $rules);
@@ -414,11 +406,11 @@ class VaultSettings
      */
     public function setSecret(string $key, #[SensitiveParameter] ?string $plain, User $actor): void
     {
-        Gate::forUser($actor)->authorize(Ability::ManageSettings);
-
         if (! in_array($key, self::SECRET_KEYS, true)) {
             throw ValidationException::withMessages([$key => __('This setting does not exist.')]);
         }
+
+        Gate::forUser($actor)->authorize(SettingsRegistry::get($key)->permission);
 
         DB::transaction(function () use ($key, $plain, $actor): void {
             if ($plain === null || $plain === '') {

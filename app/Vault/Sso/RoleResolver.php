@@ -2,10 +2,11 @@
 
 namespace App\Vault\Sso;
 
-use App\Enums\AdminRole;
+use App\Models\Role;
 
 /**
- * Turns the groups of the ID token into a role through the configured mapping. The highest role wins.
+ * Turns the groups of the ID token into a role through the mapping on the Roles page. The first role whose groups
+ * match wins, and the roles are tried from the most powerful down.
  */
 class RoleResolver
 {
@@ -16,13 +17,13 @@ class RoleResolver
      *
      * @param  array<string, mixed>  $claims
      */
-    public function resolve(array $claims): ?AdminRole
+    public function resolve(array $claims): ?Role
     {
         $groups = $this->groupsOf($claims);
 
-        foreach ($this->config->roleGroups() as $role => $names) {
-            if (array_intersect($names, $groups) !== []) {
-                return AdminRole::from($role);
+        foreach ($this->config->roleGroups() as $row) {
+            if (array_intersect($row['groups'], $groups) !== []) {
+                return $row['role'];
             }
         }
 

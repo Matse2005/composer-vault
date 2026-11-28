@@ -121,13 +121,16 @@ new #[Title('Audit log')] class extends Component {
      */
     public function subjectUrl(?Model $subject): ?string
     {
-        $canManageVault = auth()->user()?->can('vault.manage') === true;
-        $canManageAdmins = auth()->user()?->can('admins.manage') === true;
+        $user = auth()->user();
+        $canProjects = $user?->can('projects.manage') === true;
+        $canCredentials = $user?->can('credentials.manage') === true;
+        $canTokens = $user?->can('tokens.manage') === true;
+        $canManageAdmins = $user?->can('admins.view') === true;
 
         return match (true) {
-            $subject instanceof Project && $canManageVault => route('projects.show', $subject),
-            $subject instanceof Credential && $canManageVault => route('credentials.edit', $subject),
-            $subject instanceof AccessToken && $canManageVault => route('tokens.show', $subject),
+            $subject instanceof Project && $canProjects => route('projects.show', $subject),
+            $subject instanceof Credential && $canCredentials => route('credentials.edit', $subject),
+            $subject instanceof AccessToken && $canTokens => route('tokens.show', $subject),
             ($subject instanceof Invitation || $subject instanceof User) && $canManageAdmins => route('admins.index'),
             default => null,
         };

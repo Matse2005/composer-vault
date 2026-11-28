@@ -181,7 +181,7 @@ new #[Title('Project')] class extends Component {
             <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
                 @foreach ($tokens as $token)
                     <li wire:key="token-{{ $token->id }}" class="flex items-center justify-between px-4 py-2">
-                        @can('vault.manage')<flux:link :href="route('tokens.show', $token)" wire:navigate>{{ $token->name }}</flux:link>@else{{ $token->name }}@endcan
+                        @can('projects.manage')<flux:link :href="route('tokens.show', $token)" wire:navigate>{{ $token->name }}</flux:link>@else{{ $token->name }}@endcan
                         <span class="text-sm">
                             @if ($token->isRevoked())
                                 {{ __('Revoked') }}

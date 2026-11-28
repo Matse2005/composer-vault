@@ -19,7 +19,7 @@ class RevokeAccessToken
      */
     public function handle(AccessToken $token): void
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::TokensManage);
 
         if ($token->isRevoked()) {
             return;

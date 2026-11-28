@@ -27,7 +27,7 @@ class LinkProjectToCredentials
      */
     public function handle(Project $project, array $credentialIds): void
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::CredentialsManage);
 
         DB::transaction(function () use ($project, $credentialIds): void {
             $this->hostConflictGuard->assertCanLinkToCredentials($project, $credentialIds);

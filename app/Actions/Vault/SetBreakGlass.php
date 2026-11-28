@@ -25,7 +25,7 @@ class SetBreakGlass
      */
     public function handle(User $admin, bool $breakGlass, User $actor): void
     {
-        Gate::forUser($actor)->authorize(Ability::ManageAdmins);
+        Gate::forUser($actor)->authorize(Ability::AdminsManage);
 
         DB::transaction(function () use ($admin, $breakGlass, $actor): void {
             $admin->refresh();

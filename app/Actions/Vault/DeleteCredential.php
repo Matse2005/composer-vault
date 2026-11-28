@@ -18,7 +18,7 @@ class DeleteCredential
      */
     public function handle(Credential $credential): void
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::CredentialsManage);
 
         DB::transaction(function () use ($credential): void {
             $this->auditLogger->record(

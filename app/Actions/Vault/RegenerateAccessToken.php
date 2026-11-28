@@ -28,7 +28,7 @@ class RegenerateAccessToken
      */
     public function handle(AccessToken $token): IssuedToken
     {
-        Gate::authorize(Ability::ManageVault);
+        Gate::authorize(Ability::TokensManage);
         TokenPolicy::assertAllows($token->expires_at);
 
         return DB::transaction(function () use ($token): IssuedToken {
