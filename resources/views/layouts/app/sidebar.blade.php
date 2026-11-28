@@ -56,6 +56,16 @@
                         {{ __('Roles') }}
                     </flux:sidebar.item>
                     @endcan
+                    @can('settings.api')
+                    <flux:sidebar.item icon="code-bracket" :href="route('settings.api')" :current="request()->routeIs('settings.api')" wire:navigate>
+                        {{ __('API') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('settings.any')
+                    <flux:sidebar.item icon="clock" :href="route('settings.history')" :current="request()->routeIs('settings.history')" wire:navigate>
+                        {{ __('Settings history') }}
+                    </flux:sidebar.item>
+                    @endcan
                     @can('settings.organisation')
                     <flux:sidebar.item icon="building-office" :href="route('settings.organisation')" :current="request()->routeIs('settings.organisation')" wire:navigate>
                         {{ __('Organisation') }}

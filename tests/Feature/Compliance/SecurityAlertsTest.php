@@ -247,7 +247,7 @@ it('saves the notification settings, keeps the webhook write-only and lists the 
     $this->actingAs(User::factory()->withTwoFactor()->create());
 
     $component = Livewire::test('pages::settings.notifications')
-        ->assertSee('Failed token burst')->assertSee('Active')
+        ->assertSee('Failed token burst')->assertSee('Each active rule fires')
         ->set('mail', 'ops@example.test')
         ->set('slackWebhook', 'https://hooks.slack.test/T/B/secretvalue')
         ->call('save')
@@ -264,7 +264,7 @@ it('shows the rules off while no channel is set and refuses other roles', functi
     app(VaultSettings::class)->update(['notifications.mail' => ''], $this->setter);
     $this->actingAs(User::factory()->withTwoFactor()->create());
 
-    Livewire::test('pages::settings.notifications')->assertSee('No channel is set')->assertDontSee('Active');
+    Livewire::test('pages::settings.notifications')->assertSee('No channel is set')->assertDontSee('Each active rule fires');
 
     $this->actingAs(User::factory()->withTwoFactor()->admin()->create());
     $this->get(route('settings.notifications'))->assertForbidden();

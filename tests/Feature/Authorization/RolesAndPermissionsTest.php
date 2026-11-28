@@ -17,21 +17,6 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Livewire\Livewire;
 use Tests\Support\FakeOidcProvider;
 
-/**
- * A user with a custom role holding exactly these permissions.
- *
- * @param  list<string>  $permissions
- */
-function userWithPermissions(array $permissions, bool $twoFactor = true): User
-{
-    $role = Role::factory()->withPermissions($permissions)->create();
-    $user = $twoFactor ? User::factory()->withTwoFactor()->create() : User::factory()->create();
-    $role->assignTo($user);
-    $user->save();
-
-    return $user;
-}
-
 it('seeds the three system roles with the permissions of the phase 8 matrix', function () {
     $roles = Role::query()->where('is_system', true)->get()->keyBy('slug');
 

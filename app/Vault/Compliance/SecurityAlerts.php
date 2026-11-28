@@ -25,10 +25,6 @@ class SecurityAlerts
 
     private const BURST_WINDOW_SECONDS = 600;
 
-    public const FAILED_ATTEMPTS_THRESHOLD = 20;
-
-    public const SSO_REJECTIONS_THRESHOLD = 10;
-
     public function __construct(private VaultSettings $settings) {}
 
     /**
@@ -48,6 +44,10 @@ class SecurityAlerts
      */
     public function send(AlertRule $rule, string $subject, string $summary, array $alsoMail = []): void
     {
+        if (! $this->settings->get('alerts.rule.'.$rule->value)) {
+            return;
+        }
+
         if (! $this->hasChannel() && $alsoMail === []) {
             return;
         }
@@ -83,8 +83,9 @@ class SecurityAlerts
      */
     public function failedAttempt(string $ip): void
     {
-        if ($this->burst('failed:'.$ip, self::FAILED_ATTEMPTS_THRESHOLD)) {
-            $this->send(AlertRule::FailedTokenBurst, $ip, 'At least '.self::FAILED_ATTEMPTS_THRESHOLD." failed API attempts within 10 minutes from {$ip}.");
+        $threshold = (int) $this->settings->get('alerts.failed_attempts_threshold');
+        if ($this->burst('failed:'.$ip, $threshold)) {
+            $this->send(AlertRule::FailedTokenBurst, $ip, "At least {$threshold} failed API attempts within 10 minutes from {$ip}.");
         }
     }
 
@@ -93,8 +94,9 @@ class SecurityAlerts
      */
     public function ssoRejection(): void
     {
-        if ($this->burst('sso', self::SSO_REJECTIONS_THRESHOLD)) {
-            $this->send(AlertRule::SsoRejectionBurst, 'sso', 'At least '.self::SSO_REJECTIONS_THRESHOLD.' single sign-on attempts were rejected within 10 minutes.');
+        $ssoThreshold = (int) $this->settings->get('alerts.sso_rejections_threshold');
+        if ($this->burst('sso', $ssoThreshold)) {
+            $this->send(AlertRule::SsoRejectionBurst, 'sso', "At least {$ssoThreshold} single sign-on attempts were rejected within 10 minutes.");
         }
     }
 
