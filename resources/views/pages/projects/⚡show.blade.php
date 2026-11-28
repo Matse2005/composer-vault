@@ -153,7 +153,7 @@ new #[Title('Project')] class extends Component {
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="space-y-2">
                 <flux:heading size="xl" level="1">{{ $this->project->name }}</flux:heading>
-                <code class="rounded bg-white px-2 py-1 font-mono text-xs dark:bg-zinc-900" data-test="project-slug">{{ $this->project->slug }}</code>
+                <x-vault.copy-field :value="$this->project->slug" data-test="project-slug" />
                 @if ($this->project->notes)
                     <flux:text>{{ $this->project->notes }}</flux:text>
                 @endif
@@ -187,32 +187,14 @@ new #[Title('Project')] class extends Component {
             <flux:heading size="lg" level="2">{{ __('Credentials') }}</flux:heading>
 
             @forelse ($this->credentials as $credential)
-                <div wire:key="credential-{{ $credential->id }}" class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 px-4 py-3 dark:border-zinc-700">
-                    <div>
-                        @can('credentials.manage')
-                            <flux:link :href="route('credentials.edit', [$this->project, $credential])" wire:navigate class="font-medium">{{ $credential->name }}</flux:link>
-                        @else
-                            <span class="font-medium">{{ $credential->name }}</span>
-                        @endcan
-                        <div class="text-xs text-zinc-600 dark:text-zinc-400"><span class="font-mono">{{ $credential->host }}</span>, {{ $credential->type->label() }}</div>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
-                        <span title="{{ $credential->secret_changed_at }}">{{ __('Secret changed :time', ['time' => $credential->secret_changed_at->diffForHumans()]) }}</span>
-                        @if ($this->rotationDays() !== null && $credential->secret_changed_at->lt(now()->subDays($this->rotationDays())))
-                            <flux:badge size="sm" color="amber" icon="exclamation-triangle">{{ __('Rotation due') }}</flux:badge>
-                        @endif
-                    </div>
-                </div>
+                <x-vault.credential-row wire:key="credential-{{ $credential->id }}" :credential="$credential" :project="$this->project" :can-manage="auth()->user()->can('credentials.manage')" :rotation-days="$this->rotationDays()" />
             @empty
-                <div class="rounded-xl border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-600" data-test="credentials-empty">
-                    <flux:heading>{{ __('No credentials yet') }}</flux:heading>
-                    <flux:text class="mt-1">{{ __('A credential is a key for a host such as repo.magento.com. Servers that use a token of this project receive it.') }}</flux:text>
+                <x-vault.empty-state data-test="credentials-empty" icon="key" :title="__('No credentials yet')" :text="__('A credential is a key for a host such as repo.magento.com. Servers that use a token of this project receive it.')">
                     @can('credentials.manage')
-                        <flux:button class="mt-4" variant="primary" icon="plus" :href="route('credentials.create', $this->project)" wire:navigate>{{ __('Add credential') }}</flux:button>
+                        <flux:button variant="primary" icon="plus" :href="route('credentials.create', $this->project)" wire:navigate>{{ __('Add credential') }}</flux:button>
                     @endcan
-                </div>
-            @endforelse
-        </div>
+                </x-vault.empty-state>
+            @endforelse        </div>
     @endcan
 
     @can('tokens.view')
@@ -230,14 +212,7 @@ new #[Title('Project')] class extends Component {
                         <div class="text-xs text-zinc-600 dark:text-zinc-400">{{ $token->last_used_at ? __('used :time', ['time' => $token->last_used_at->diffForHumans()]) : __('never used') }}</div>
                     </div>
                     <span class="text-sm">
-                        @if ($token->isRevoked())
-                            <flux:badge size="sm" color="red" icon="x-circle">{{ __('Revoked') }}</flux:badge>
-                        @elseif ($token->isExpired())
-                            <flux:badge size="sm" icon="minus-circle">{{ __('Expired') }}</flux:badge>
-                        @else
-                            <flux:badge size="sm" color="green" icon="check-circle">{{ __('Active') }}</flux:badge>
-                        @endif
-                    </span>
+                        <x-vault.status-badge :status="$token->isRevoked() ? 'revoked' : ($token->isExpired() ? 'expired' : 'active')" />                    </span>
                 </div>
             @empty
                 <flux:text>{{ __('No server token can fetch this project yet.') }}</flux:text>
@@ -312,36 +287,19 @@ new #[Title('Project')] class extends Component {
             </flux:modal.trigger>
         </div>
 
-        <flux:modal name="delete-project" class="min-w-[22rem] max-w-md">
-            <form wire:submit="delete" class="space-y-6">
-                <div>
-                    <flux:heading size="lg">{{ __('Delete this project?') }}</flux:heading>
-                    <flux:text class="mt-2">{{ __('This cannot be undone. These are deleted with the project:') }}</flux:text>
-                    <ul class="mt-2 list-disc ps-5 text-sm" data-test="delete-list">
-                        @foreach ($this->credentials as $credential)
-                            <li wire:key="delete-credential-{{ $credential->id }}">{{ __('Credential :name', ['name' => $credential->name]) }} (<span class="font-mono text-xs">{{ $credential->host }}</span>)</li>
-                        @endforeach
-                        @foreach ($this->tokens as $token)
-                            <li wire:key="delete-token-{{ $token->id }}">{{ __('Server token :name', ['name' => $token->name]) }}</li>
-                        @endforeach
-                        @if ($this->credentials->isEmpty() && $this->tokens->isEmpty())
-                            <li>{{ __('Nothing else: the project is empty.') }}</li>
-                        @endif
-                    </ul>
-                </div>
-
-                <flux:field>
-                    <flux:label>{{ __('Type :slug to confirm', ['slug' => $this->project->slug]) }}</flux:label>
-                    <flux:input wire:model="deleteConfirmation" type="text" autocomplete="off" />
-                    <flux:error name="deleteConfirmation" />
-                </flux:field>
-
-                <div class="flex justify-end gap-2">
-                    <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
-                    <flux:button type="submit" variant="danger">{{ __('Delete project') }}</flux:button>
-                </div>
-            </form>
-        </flux:modal>
+        <x-vault.confirm-modal name="delete-project" :title="__('Delete this project?')" :text="__('This cannot be undone. These are deleted with the project:')" :confirm="$this->project->slug" action="delete" :button="__('Delete project')" model="deleteConfirmation">
+            <ul class="mt-2 list-disc ps-5 text-small" data-test="delete-list">
+                @foreach ($this->credentials as $credential)
+                    <li wire:key="delete-credential-{{ $credential->id }}">{{ __('Credential :name', ['name' => $credential->name]) }} (<span class="font-mono text-caption">{{ $credential->host }}</span>)</li>
+                @endforeach
+                @foreach ($this->tokens as $token)
+                    <li wire:key="delete-token-{{ $token->id }}">{{ __('Server token :name', ['name' => $token->name]) }}</li>
+                @endforeach
+                @if ($this->credentials->isEmpty() && $this->tokens->isEmpty())
+                    <li>{{ __('Nothing else: the project is empty.') }}</li>
+                @endif
+            </ul>
+        </x-vault.confirm-modal>
     @endcan
 
     <flux:modal name="use-in-composer" class="min-w-[22rem] max-w-xl">

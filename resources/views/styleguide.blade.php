@@ -49,5 +49,31 @@
                 <flux:badge color="red">Revoked</flux:badge>
             </div>
         </section>
-    </div>
+        <section class="space-y-4">
+            <flux:heading size="lg" level="2">Components</flux:heading>
+            <x-vault.page-header title="Page header" description="Title, description and an action slot.">
+                <x-slot:actions><flux:button variant="primary">Action</flux:button></x-slot:actions>
+            </x-vault.page-header>
+            <div class="grid gap-4 sm:grid-cols-3">
+                <x-vault.stat label="Projects" value="12" />
+                <x-vault.stat label="Credentials" value="31" hint="3 rotation due" />
+                <x-vault.stat label="Active tokens" value="8" />
+            </div>
+            <div class="flex flex-wrap gap-2">
+                @foreach (['active', 'ok', 'warning', 'revoked', 'failed', 'expired', 'unknown'] as $status)
+                    <x-vault.status-badge :status="$status" />
+                @endforeach
+            </div>
+            <div class="flex gap-4">
+                @foreach (App\Enums\CredentialType::cases() as $type)
+                    <div class="flex items-center gap-2"><x-vault.credential-type-icon :type="$type" /><span class="text-small">{{ $type->label() }}</span></div>
+                @endforeach
+            </div>
+            <x-vault.copy-field label="Slug" value="webshop" />
+            <x-vault.empty-state icon="key" title="No credentials yet" text="A credential is a key for a host." />
+            <x-vault.table :empty="'Nothing here'">
+                <x-slot:head><th class="px-4 py-2 text-start font-medium">Name</th><th class="px-4 py-2 text-start font-medium">Host</th></x-slot:head>
+                <tr><td class="px-4 py-2">Magento</td><td class="px-4 py-2 font-mono text-caption">repo.magento.com</td></tr>
+            </x-vault.table>
+        </section>    </div>
 </x-layouts::app>
