@@ -79,7 +79,14 @@ new #[Title('Token')] class extends Component {
             return;
         }
 
-        $this->plainToken = $regenerateAccessToken->handle($this->token)->plainToken;
+        try {
+            $this->plainToken = $regenerateAccessToken->handle($this->token)->plainToken;
+        } catch (\App\Exceptions\Vault\TokenPolicyException $exception) {
+            $this->addError('token', $exception->getMessage().' '.__('Change the expiry of this token first.'));
+            Flux::modals()->close();
+
+            return;
+        }
 
         unset($this->token);
         Flux::modal('one-time-secret')->show();
