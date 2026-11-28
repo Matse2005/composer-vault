@@ -71,6 +71,13 @@
                     </flux:sidebar.item>
                     @endcan
                 </flux:sidebar.group>
+                <flux:sidebar.group :heading="__('Compliance')" class="grid">
+                    @can('vault.view')
+                    <flux:sidebar.item icon="document-text" :href="route('compliance.data-processing')" :current="request()->routeIs('compliance.data-processing')" wire:navigate>
+                        {{ __('Data processing') }}
+                    </flux:sidebar.item>
+                    @endcan
+                </flux:sidebar.group>
             </flux:sidebar.nav>
 
             <flux:spacer />

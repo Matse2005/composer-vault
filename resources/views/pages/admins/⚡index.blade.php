@@ -4,12 +4,14 @@ use App\Actions\Vault\ChangeAdminRole;
 use App\Actions\Vault\DeactivateAdmin;
 use App\Actions\Vault\InviteAdmin;
 use App\Actions\Vault\SetBreakGlass;
+use App\Actions\Vault\PseudonymiseAdmin;
 use App\Actions\Vault\ReactivateAdmin;
 use App\Actions\Vault\RevokeInvitation;
 use App\Enums\AdminRole;
 use App\Exceptions\Vault\BreakGlassNotAllowedException;
 use App\Exceptions\Vault\CannotDeactivateAdminException;
 use App\Exceptions\Vault\LastOwnerException;
+use App\Exceptions\Vault\PseudonymisationRefusedException;
 use App\Exceptions\Vault\InvitationNotAllowedException;
 use App\Models\Invitation;
 use App\Models\User;
@@ -124,6 +126,22 @@ new #[Title('Admins')] class extends Component {
 
         unset($this->activeAdmins);
         Flux::toast(__('Role changed.'));
+    }
+
+    public function pseudonymise(int $userId, PseudonymiseAdmin $pseudonymiseAdmin): void
+    {
+        try {
+            $pseudonymiseAdmin->handle(User::query()->findOrFail($userId), auth()->user());
+        } catch (PseudonymisationRefusedException $exception) {
+            $this->addError('deactivate', $exception->getMessage());
+            Flux::modals()->close();
+
+            return;
+        }
+
+        unset($this->deactivatedAdmins);
+        Flux::modals()->close();
+        Flux::toast(__('Personal data replaced.'));
     }
 
     public function reactivate(int $userId, ReactivateAdmin $reactivateAdmin): void
@@ -313,7 +331,32 @@ new #[Title('Admins')] class extends Component {
                                 <td class="px-4 py-2">{{ $admin->name }}</td>
                                 <td class="px-4 py-2">{{ $admin->email }}</td>
                                 <td class="px-4 py-2" title="{{ $admin->deactivated_at }}">{{ $admin->deactivated_at->diffForHumans() }}</td>
-                                <td class="px-4 py-2 text-end"><flux:button size="sm" wire:click="reactivate({{ $admin->id }})">{{ __('Reactivate') }}</flux:button></td>
+                                <td class="px-4 py-2 text-end">
+                                    @if ($admin->pseudonymised_at === null)
+                                        <flux:button size="sm" wire:click="reactivate({{ $admin->id }})">{{ __('Reactivate') }}</flux:button>
+                                        <flux:button size="sm" :href="route('personal-data.export', $admin)">{{ __('Export data') }}</flux:button>
+                                        <flux:modal.trigger :name="'pseudonymise-'.$admin->id">
+                                            <flux:button size="sm" variant="danger">{{ __('Pseudonymise') }}</flux:button>
+                                        </flux:modal.trigger>
+
+                                        <flux:modal :name="'pseudonymise-'.$admin->id" class="min-w-[22rem] max-w-md text-start">
+                                            <div class="space-y-6">
+                                                <div>
+                                                    <flux:heading size="lg">{{ __('Replace the personal data of :name?', ['name' => $admin->name]) }}</flux:heading>
+                                                    <flux:text class="mt-2">
+                                                        {{ __('The name and email become a pseudonym, and the password, second factor, passkeys, sessions and single sign-on link are removed. This cannot be undone. Audit entries keep pointing to the account, now under the pseudonym. IP addresses in audit entries are not changed, because they are part of the hash chain; they are deleted when the audit log retention passes.') }}
+                                                    </flux:text>
+                                                </div>
+                                                <div class="flex justify-end gap-2">
+                                                    <flux:modal.close><flux:button variant="ghost">{{ __('Cancel') }}</flux:button></flux:modal.close>
+                                                    <flux:button wire:click="pseudonymise({{ $admin->id }})" variant="danger">{{ __('Replace personal data') }}</flux:button>
+                                                </div>
+                                            </div>
+                                        </flux:modal>
+                                    @else
+                                        <flux:badge size="sm">{{ __('Pseudonymised') }}</flux:badge>
+                                    @endif
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

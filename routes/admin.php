@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PersonalDataController;
 use App\Vault\Authorization\Ability;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,9 @@ Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
         Route::livewire('logs/audit', 'pages::logs.audit')->name('logs.audit');
         Route::livewire('security-status', 'pages::security-status')->name('security-status');
     });
+
+    Route::get('personal-data/{user}', PersonalDataController::class)->name('personal-data.export');
+    Route::livewire('compliance/data-processing', 'pages::compliance.data-processing')->name('compliance.data-processing')->middleware('can:'.Ability::ViewVault);
 
     Route::middleware('can:'.Ability::ManageAdmins)->group(function () {
         Route::livewire('admins', 'pages::admins.index')->name('admins.index');
