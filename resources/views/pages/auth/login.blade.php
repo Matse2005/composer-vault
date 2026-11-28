@@ -15,6 +15,10 @@
 
         <x-passkey-verify />
 
+        @if ($sso->enforced())
+            <flux:text class="text-center text-sm">{{ __('Single sign-on is required. Break-glass Owners can sign in below.') }}</flux:text>
+        @endif
+
         <form method="POST" action="{{ route('login.store') }}" class="flex flex-col gap-6">
             @csrf
 

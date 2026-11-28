@@ -55,6 +55,15 @@ class Invitation extends Model
     }
 
     /**
+     * Determine whether this is the invitation of the first Owner, created by vault:install. It can be accepted with a
+     * password even when single sign-on is enforced, and the Owner becomes a break-glass account.
+     */
+    public function isFirstOwner(): bool
+    {
+        return $this->invited_by === null && $this->role === AdminRole::Owner;
+    }
+
+    /**
      * Determine whether the invitation can still be accepted: not accepted, not revoked and not expired.
      */
     public function isUsable(): bool

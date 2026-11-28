@@ -6,6 +6,7 @@ use App\Enums\AdminRole;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\LastOwnerException;
 use App\Exceptions\Vault\SsoRejectedException;
+use App\Models\Invitation;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\OwnerGuard;
@@ -204,6 +205,20 @@ class SsoSignIn
             return $byEmail;
         }
 
+        $invitation = Invitation::query()
+            ->where('email', $email)
+            ->whereNull('accepted_at')
+            ->whereNull('revoked_at')
+            ->where('expires_at', '>', now())
+            ->lockForUpdate()
+            ->first();
+
+        if ($invitation !== null) {
+            $invitation->forceFill(['accepted_at' => now()])->save();
+
+            return $this->provision($claims, $email, $role ?? $invitation->role, $issuer, $subject, 'invitation');
+        }
+
         if (! $this->config->autoProvision() || $role === null) {
             throw new SsoRejectedException(SsoRejectedException::NOT_PROVISIONED);
         }
@@ -214,7 +229,7 @@ class SsoSignIn
     /**
      * @param  array<string, mixed>  $claims
      */
-    private function provision(array $claims, string $email, AdminRole $role, string $issuer, string $subject): User
+    private function provision(array $claims, string $email, AdminRole $role, string $issuer, string $subject, string $source = 'sso'): User
     {
         $name = $claims['name'] ?? null;
 
@@ -229,7 +244,7 @@ class SsoSignIn
         ]);
         $user->save();
 
-        $this->auditLogger->record(AuditAction::AdminProvisioned, $user, ['role' => $role, 'source' => 'sso'], null);
+        $this->auditLogger->record(AuditAction::AdminProvisioned, $user, ['role' => $role, 'source' => $source], null);
 
         return $user;
     }

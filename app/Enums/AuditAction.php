@@ -34,6 +34,8 @@ enum AuditAction: string
     case SsoLoginRejected = 'sso_login_rejected';
     case SsoAccountLinked = 'sso_account_linked';
     case AdminProvisioned = 'admin_provisioned';
+    case BreakGlassChanged = 'break_glass_changed';
+    case BreakGlassLogin = 'break_glass_login';
 
     /**
      * Get the short English sentence stored as the description of the entry, for example "Credential created".

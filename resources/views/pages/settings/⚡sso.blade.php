@@ -24,6 +24,7 @@ new #[Title('Single sign-on')] class extends Component {
         'enabled' => 'Single sign-on is on',
         'auto_provision' => 'Create an admin on the first sign-in',
         'trust_idp_mfa' => 'Trust the multi-factor sign-in of the provider',
+        'enforce' => 'Enforce single sign-on: the password and passkey login stop for everyone except break-glass Owners',
     ];
 
     /** @var array<string, mixed> */

@@ -10,6 +10,7 @@ use App\Exceptions\Vault\InvitationNotAllowedException;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Crypto\MasterKey;
+use App\Vault\Sso\SsoConfig;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -163,7 +164,7 @@ class InstallVault extends Command
 
         DB::transaction(function () use ($name, $email, $plainPassword, $auditLogger): void {
             $user = new User(['name' => $name, 'email' => mb_strtolower(trim($email)), 'password' => $plainPassword]);
-            $user->forceFill(['email_verified_at' => now(), 'role' => AdminRole::Owner])->save();
+            $user->forceFill(['email_verified_at' => now(), 'role' => AdminRole::Owner, 'is_break_glass' => app(SsoConfig::class)->enforced()])->save();
 
             $auditLogger->record(AuditAction::VaultInstalled, null, ['version' => $this->appVersion(), 'admin_id' => $user->id]);
         });

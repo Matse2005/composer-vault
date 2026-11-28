@@ -34,6 +34,13 @@ new #[Layout('layouts::auth'), Title('Accept invitation')] class extends Compone
 
         abort_unless($invitation?->isUsable(), 404);
 
+        if (app(\App\Vault\Sso\SsoConfig::class)->enforced() && ! $invitation->isFirstOwner()) {
+            session()->flash('status', __('Sign in with single sign-on to join. Use the address this invitation was sent to.'));
+            $this->redirectRoute('login');
+
+            return;
+        }
+
         $this->token = $token;
         $this->email = $invitation->email;
     }

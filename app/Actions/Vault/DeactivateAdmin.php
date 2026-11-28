@@ -43,6 +43,7 @@ class DeactivateAdmin
 
             $admin->forceFill([
                 'deactivated_at' => now(),
+                'is_break_glass' => false,
                 'remember_token' => Str::random(60),
             ])->save();
 
