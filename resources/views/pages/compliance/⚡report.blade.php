@@ -32,9 +32,9 @@ new #[Title('Compliance report')] class extends Component {
         <flux:button class="print:hidden" icon="printer" x-on:click="window.print()">{{ __('Print') }}</flux:button>
     </div>
 
-    <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+    <div class="overflow-x-auto rounded-panel border border-border">
         <table class="w-full text-start text-sm">
-            <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+            <thead class="bg-surface-sunken text-ink-muted">
                 <tr>
                     <th class="px-4 py-2 text-start font-medium">{{ __('Control') }}</th>
                     <th class="px-4 py-2 text-start font-medium">{{ __('Status') }}</th>
@@ -42,7 +42,7 @@ new #[Title('Compliance report')] class extends Component {
                     <th class="px-4 py-2 text-start font-medium">{{ __('Supports') }}</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+            <tbody class="divide-y divide-border">
                 @foreach ($this->controls() as $row)
                     <tr wire:key="control-{{ $loop->index }}">
                         <td class="px-4 py-2 font-medium">{{ __($row['control']) }}</td>
@@ -62,7 +62,7 @@ new #[Title('Compliance report')] class extends Component {
         <flux:text class="text-xs">{{ __('For each security-relevant setting: set by the environment, by the dashboard, or at its default.') }}</flux:text>
         <ul class="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
             @foreach ($this->sources() as $key => $source)
-                <li wire:key="source-{{ $key }}" class="flex justify-between border-b border-zinc-200 py-1 dark:border-zinc-700"><span class="font-mono text-xs">{{ $key }}</span><span>{{ __($source) }}</span></li>
+                <li wire:key="source-{{ $key }}" class="flex justify-between border-b border-border py-1"><span class="font-mono text-xs">{{ $key }}</span><span>{{ __($source) }}</span></li>
             @endforeach
         </ul>
     </div>

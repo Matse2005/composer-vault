@@ -112,7 +112,7 @@ new #[Title('Roles')] class extends Component {
 
     <flux:text>{{ __('A role is a set of permissions. Owner always has every permission and cannot be changed. You can only give permissions you have yourself, and you cannot change your own role.') }}</flux:text>
 
-    <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+    <ul class="divide-y divide-border rounded-panel border border-border">
         @foreach ($this->roles as $role)
             <li wire:key="role-{{ $role->id }}" class="flex items-center justify-between px-4 py-2">
                 <button type="button" wire:click="select('{{ $role->id }}')" class="cursor-pointer text-start font-medium">{{ $role->name }}</button>
@@ -124,7 +124,7 @@ new #[Title('Roles')] class extends Component {
         @endforeach
     </ul>
 
-    <form wire:submit="save" class="space-y-6 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+    <form wire:submit="save" class="space-y-6 rounded-panel border border-border p-5">
         <flux:heading size="lg" level="2">{{ $this->selected ? __('Edit :name', ['name' => $this->selected->name]) : __('New role') }}</flux:heading>
 
         @if ($this->selected?->isOwner())

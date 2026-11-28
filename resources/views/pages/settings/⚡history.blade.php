@@ -69,8 +69,8 @@ new #[Title('Settings history')] class extends Component {
     <flux:error name="restore" />
 
     @forelse ($this->entries as $entry)
-        <div wire:key="entry-{{ $entry->sequence }}" class="space-y-2 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-            <div class="text-sm text-zinc-600 dark:text-zinc-400" title="{{ $entry->created_at }}">#{{ $entry->sequence }}, {{ $entry->created_at?->diffForHumans() }}</div>
+        <div wire:key="entry-{{ $entry->sequence }}" class="space-y-2 rounded-panel border border-border p-4">
+            <div class="text-sm text-ink-muted" title="{{ $entry->created_at }}">#{{ $entry->sequence }}, {{ $entry->created_at?->diffForHumans() }}</div>
             @foreach ((array) ($entry->properties['changes'] ?? []) as $key => $change)
                 <div wire:key="change-{{ $entry->sequence }}-{{ $key }}" class="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span><span class="font-mono">{{ $key }}</span>: {{ is_scalar($change['old'] ?? null) || ($change['old'] ?? null) === null ? json_encode($change['old'] ?? null) : '...' }} &rarr; {{ is_scalar($change['new'] ?? null) || ($change['new'] ?? null) === null ? json_encode($change['new'] ?? null) : '...' }}</span>

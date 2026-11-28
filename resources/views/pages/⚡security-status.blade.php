@@ -48,7 +48,7 @@ new #[Title('Security status')] class extends Component {
     </div>
 
     @if ($this->report === null)
-        <div class="rounded-xl border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-600">
+        <div class="rounded-panel border border-dashed border-border-strong p-10 text-center">
             <flux:text>{{ __('No checks have run yet. Run them now, or wait for the scheduler.') }}</flux:text>
         </div>
     @else
@@ -56,9 +56,9 @@ new #[Title('Security status')] class extends Component {
             {{ __('Last run :time', ['time' => $this->report['finished_at']->diffForHumans()]) }}
         </flux:text>
 
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="overflow-x-auto rounded-panel border border-border">
             <table class="w-full text-start text-sm">
-                <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                <thead class="bg-surface-sunken text-ink-muted">
                     <tr>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Status') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Check') }}</th>
@@ -66,7 +66,7 @@ new #[Title('Security status')] class extends Component {
                         <th class="px-4 py-2 text-start font-medium">{{ __('Fix') }}</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody class="divide-y divide-border">
                     @foreach ($this->report['rows'] as $row)
                         <tr wire:key="check-{{ $row['name'] }}">
                             <td class="px-4 py-2"><flux:badge size="sm" :color="$this->statusColor($row['status'])">{{ $row['status'] }}</flux:badge></td>
