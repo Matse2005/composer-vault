@@ -3,6 +3,7 @@
 namespace App\Livewire\Concerns;
 
 use App\Models\Project;
+use App\Vault\Settings\VaultSettings;
 use App\Vault\Tokens\IpAllowlist;
 use Carbon\CarbonImmutable;
 use Closure;
@@ -46,13 +47,22 @@ trait HasTokenForm
     {
         $unchangedExpiry = $currentExpiry !== null && $this->expiresOn === $currentExpiry->toDateString();
 
+        $maxDays = app(VaultSettings::class)->tokenMaxLifetimeDays();
+        $expiryRules = ['nullable', 'date_format:Y-m-d', $unchangedExpiry ? 'nullable' : 'after_or_equal:today'];
+
+        if ($maxDays !== null && ! $unchangedExpiry) {
+            $expiryRules = ['required', 'date_format:Y-m-d', 'after_or_equal:today', 'before_or_equal:'.now()->addDays($maxDays)->toDateString()];
+        }
+
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:100'],
             'projectIds' => ['required', 'array', 'min:1'],
             'projectIds.*' => ['string', Rule::exists('projects', 'id')],
             'allowedIps' => ['nullable', 'string', 'max:5000', $this->allowlistRule()],
-            'expiresOn' => ['nullable', 'date_format:Y-m-d', $unchangedExpiry ? 'nullable' : 'after_or_equal:today'],
+            'expiresOn' => $expiryRules,
         ], [
+            'expiresOn.required' => __('A token needs an expiry date within :days days.', ['days' => $maxDays]),
+            'expiresOn.before_or_equal' => __('A token needs an expiry date within :days days.', ['days' => $maxDays]),
             'projectIds.required' => __('Select at least one project.'),
             'projectIds.min' => __('Select at least one project.'),
             'expiresOn.after_or_equal' => __('The expiry date must be today or later.'),

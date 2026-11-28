@@ -28,6 +28,9 @@ final class Ability
     /** Organisation details, retention and policies. */
     public const string ManageSettings = 'settings.manage';
 
+    /** Read the access review: admins, tokens and credentials that need a look. */
+    public const string ReviewAccess = 'access.review';
+
     /** Incident actions, access reviews and the personal data tools. */
     public const string ManageCompliance = 'compliance.manage';
 
@@ -41,7 +44,7 @@ final class Ability
         return match ($ability) {
             self::ViewVault, self::ViewLogs => [AdminRole::Owner, AdminRole::Admin, AdminRole::Auditor],
             self::ManageVault => [AdminRole::Owner, AdminRole::Admin],
-            self::ExportLogs => [AdminRole::Owner, AdminRole::Auditor],
+            self::ExportLogs, self::ReviewAccess => [AdminRole::Owner, AdminRole::Auditor],
             self::ManageAdmins, self::ManageSettings, self::ManageCompliance => [AdminRole::Owner],
             default => [],
         };
@@ -59,6 +62,7 @@ final class Ability
             self::ManageVault,
             self::ViewLogs,
             self::ExportLogs,
+            self::ReviewAccess,
             self::ManageAdmins,
             self::ManageSettings,
             self::ManageCompliance,

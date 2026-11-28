@@ -11,6 +11,7 @@ use App\Vault\Authorization\Ability;
 use App\Vault\Compliance\NotificationTargets;
 use App\Vault\Crypto\EnvKeyProvider;
 use App\Vault\Crypto\KeyProvider;
+use App\Vault\Health\AccessReviewCheck;
 use App\Vault\Health\AdminExistsCheck;
 use App\Vault\Health\AuditChainCheck;
 use App\Vault\Health\CspEnforcedCheck;
@@ -102,6 +103,7 @@ class AppServiceProvider extends ServiceProvider
             AdminExistsCheck::new(),
             SsoConfigurationCheck::new(),
             SecurityLogChannelCheck::new(),
+            AccessReviewCheck::new(),
         ]);
 
         if ($this->app->runningInConsole()) {

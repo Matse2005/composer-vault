@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
     });
 
     Route::get('personal-data/{user}', PersonalDataController::class)->name('personal-data.export');
+    Route::livewire('compliance/access-review', 'pages::compliance.access-review')->name('compliance.access-review')->middleware('can:'.Ability::ReviewAccess);
     Route::livewire('compliance/data-processing', 'pages::compliance.data-processing')->name('compliance.data-processing')->middleware('can:'.Ability::ViewVault);
 
     Route::middleware('can:'.Ability::ManageCompliance)->group(function () {
@@ -54,6 +55,7 @@ Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
         Route::livewire('admin-settings/organisation', 'pages::settings.organisation')->name('settings.organisation');
         Route::livewire('admin-settings/sso', 'pages::settings.sso')->name('settings.sso');
         Route::livewire('admin-settings/access', 'pages::settings.access')->name('settings.access');
+        Route::livewire('admin-settings/policies', 'pages::settings.policies')->name('settings.policies');
         Route::livewire('admin-settings/retention', 'pages::settings.retention')->name('settings.retention');
         Route::livewire('admin-settings/notifications', 'pages::settings.notifications')->name('settings.notifications');
     });

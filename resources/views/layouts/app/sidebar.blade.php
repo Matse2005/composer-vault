@@ -64,6 +64,9 @@
                     <flux:sidebar.item icon="archive-box" :href="route('settings.retention')" :current="request()->routeIs('settings.retention')" wire:navigate>
                         {{ __('Retention') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="scale" :href="route('settings.policies')" :current="request()->routeIs('settings.policies')" wire:navigate>
+                        {{ __('Policies') }}
+                    </flux:sidebar.item>
                     <flux:sidebar.item icon="bell-alert" :href="route('settings.notifications')" :current="request()->routeIs('settings.notifications')" wire:navigate>
                         {{ __('Notifications') }}
                     </flux:sidebar.item>
@@ -78,6 +81,11 @@
                     @can('compliance.manage')
                     <flux:sidebar.item icon="exclamation-triangle" :href="route('incidents')" :current="request()->routeIs('incidents')" wire:navigate>
                         {{ __('Incidents') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('access.review')
+                    <flux:sidebar.item icon="clipboard-document-check" :href="route('compliance.access-review')" :current="request()->routeIs('compliance.access-review')" wire:navigate>
+                        {{ __('Access review') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('vault.view')

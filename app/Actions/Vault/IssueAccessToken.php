@@ -4,6 +4,7 @@ namespace App\Actions\Vault;
 
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\TokenIssuingFailedException;
+use App\Exceptions\Vault\TokenPolicyException;
 use App\Models\AccessToken;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
@@ -11,6 +12,7 @@ use App\Vault\Authorization\Ability;
 use App\Vault\Tokens\IpAllowlist;
 use App\Vault\Tokens\IssuedToken;
 use App\Vault\Tokens\TokenIssuer;
+use App\Vault\Tokens\TokenPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -31,10 +33,12 @@ class IssueAccessToken
      *
      * @throws InvalidArgumentException When an allowlist entry is not an IP address or CIDR range.
      * @throws TokenIssuingFailedException
+     * @throws TokenPolicyException When a maximum lifetime is set and the expiry is missing or too far away.
      */
     public function handle(string $name, array $projectIds, ?array $allowedIps, ?CarbonImmutable $expiresAt, ?User $creator): IssuedToken
     {
         Gate::authorize(Ability::ManageVault);
+        TokenPolicy::assertAllows($expiresAt);
 
         $allowedIps = IpAllowlist::normalizeList($allowedIps);
 
