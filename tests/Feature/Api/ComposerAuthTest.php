@@ -127,6 +127,7 @@ it('runs the same queries for an unknown and an unlinked project', function () {
     Project::factory()->create(['slug' => 'existing']);
     [, $plain] = tokenForProjects($linked);
     composerAuthRequest($plain, 'linked');
+    composerAuthRequest($plain, 'warm-up-missing');
     $queryCount = function (string $slug) use ($plain): int {
         DB::flushQueryLog();
         DB::enableQueryLog();

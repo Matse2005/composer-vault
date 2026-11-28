@@ -17,6 +17,7 @@ use App\Vault\Health\EnvFilePermissionsCheck;
 use App\Vault\Health\HttpsCheck;
 use App\Vault\Health\KeyVersionsCheck;
 use App\Vault\Health\SecondFactorCheck;
+use App\Vault\Health\SecurityLogChannelCheck;
 use App\Vault\Health\SessionCheck;
 use App\Vault\Health\SlackWebhookChannel;
 use App\Vault\Health\SodiumCheck;
@@ -101,6 +102,7 @@ class AppServiceProvider extends ServiceProvider
             AuditChainCheck::new(),
             AdminExistsCheck::new(),
             SsoConfigurationCheck::new(),
+            SecurityLogChannelCheck::new(),
         ]);
 
         $channels = [];

@@ -6,6 +6,7 @@ use App\Enums\AccessResult;
 use App\Models\AccessLog;
 use App\Models\AccessToken;
 use App\Models\Project;
+use App\Vault\Compliance\SecurityEventStream;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -41,7 +42,15 @@ class AccessLogger
                 'result' => $result instanceof AccessResult ? $result : AccessResult::UnknownToken,
             ]);
 
-            DB::transaction(fn () => $log->save());
+            DB::transaction(function () use ($log, $token, $project): void {
+                $log->save();
+
+                DB::afterCommit(fn () => app(SecurityEventStream::class)->access(
+                    $log,
+                    $token instanceof AccessToken ? $token->token_prefix : null,
+                    $project instanceof Project ? $project->slug : null,
+                ));
+            });
         } catch (Throwable $exception) {
             report($exception);
         }

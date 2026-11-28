@@ -13,6 +13,7 @@ use App\Vault\Crypto\SecretCipher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use SensitiveParameter;
 
@@ -57,6 +58,7 @@ class VaultSettings
             'organisation.privacy_contact' => ['nullable', 'string', 'email:rfc', 'max:255'],
             'security.session_absolute_hours' => ['required', 'integer', 'min:1', 'max:720'],
             'security.inactive_deactivate_days' => ['required', 'integer', 'min:7', 'max:3650'],
+            'security.log_channel' => ['nullable', 'string', Rule::in(array_keys((array) config('logging.channels')))],
             'sso.enabled' => ['boolean'],
             'sso.issuer' => ['nullable', 'string', 'url:https', 'max:255'],
             'sso.client_id' => ['nullable', 'string', 'max:255'],
@@ -93,6 +95,7 @@ class VaultSettings
             'organisation.privacy_contact' => null,
             'security.session_absolute_hours' => 12,
             'security.inactive_deactivate_days' => 90,
+            'security.log_channel' => null,
             'sso.enabled' => false,
             'sso.issuer' => null,
             'sso.client_id' => null,
@@ -121,6 +124,7 @@ class VaultSettings
         return [
             'security.session_absolute_hours' => 'vault.admin.session_absolute_hours',
             'security.inactive_deactivate_days' => 'vault.admin.inactive_deactivate_days',
+            'security.log_channel' => 'vault.security_log_channel',
             'sso.enabled' => 'vault.sso.enabled',
             'sso.issuer' => 'vault.sso.issuer',
             'sso.client_id' => 'vault.sso.client_id',
@@ -176,6 +180,11 @@ class VaultSettings
     public function inactiveDeactivateDays(): int
     {
         return (int) $this->get('security.inactive_deactivate_days');
+    }
+
+    public function securityLogChannel(): ?string
+    {
+        return $this->nullableString('security.log_channel');
     }
 
     public function organisationName(): ?string
