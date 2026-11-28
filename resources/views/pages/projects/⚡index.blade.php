@@ -56,7 +56,7 @@ new #[Title('Projects')] class extends Component {
             ->withCount(['credentials', 'accessTokens'])
             ->addSelect(['last_fetch_at' => AccessLog::query()->select('created_at')->whereColumn('project_id', 'projects.id')->where('result', 'ok')->latest('created_at')->limit(1)])
             ->when(trim($this->search) !== '', fn ($query) => $query->where(
-                fn ($query) => $query->whereRaw("name like ? escape '!'", [$term])->orWhereRaw("slug like ? escape '!'", [$term])
+                fn ($query) => $query->whereRaw("lower(name) like lower(?) escape '!'", [$term])->orWhereRaw("lower(slug) like lower(?) escape '!'", [$term])
             ))
             ->orderBy($column, $direction)
             ->orderBy('id')

@@ -75,6 +75,12 @@ it('finds projects, credentials and tokens and groups them by project', function
     expect($byHost)->toHaveCount(1)->and($byHost[0]['matches'][0]['type'])->toBe('credential');
 });
 
+it('matches regardless of case', function () {
+    Project::factory()->create(['name' => 'Webshop', 'slug' => 'webshop-eu']);
+
+    expect(app(GlobalSearch::class)->search($this->admin, 'WEBSHOP'))->toHaveCount(1);
+});
+
 it('does not search below two characters or match wildcards', function () {
     Project::factory()->create(['name' => 'Webshop']);
 
