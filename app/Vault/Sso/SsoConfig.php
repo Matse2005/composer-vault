@@ -3,6 +3,7 @@
 namespace App\Vault\Sso;
 
 use App\Enums\AdminRole;
+use App\Models\User;
 use App\Vault\Settings\VaultSettings;
 
 /**
@@ -64,6 +65,15 @@ class SsoConfig
     public function trustIdpMfa(): bool
     {
         return (bool) $this->settings->get('sso.trust_idp_mfa');
+    }
+
+    /**
+     * Determine whether a person may sign in with a local credential (password or passkey). While single sign-on is
+     * enforced, only break-glass accounts may.
+     */
+    public function allowsLocalLogin(User $user): bool
+    {
+        return ! $this->enforced() || $user->is_break_glass;
     }
 
     /**

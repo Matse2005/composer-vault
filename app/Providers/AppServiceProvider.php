@@ -20,6 +20,7 @@ use App\Vault\Health\SecondFactorCheck;
 use App\Vault\Health\SessionCheck;
 use App\Vault\Health\SlackWebhookChannel;
 use App\Vault\Health\SodiumCheck;
+use App\Vault\Health\SsoConfigurationCheck;
 use App\Vault\Health\TrustedProxiesCheck;
 use App\Vault\Health\VaultKeyCheck;
 use App\Vault\RequestAttributes;
@@ -99,6 +100,7 @@ class AppServiceProvider extends ServiceProvider
             SecondFactorCheck::new(),
             AuditChainCheck::new(),
             AdminExistsCheck::new(),
+            SsoConfigurationCheck::new(),
         ]);
 
         $channels = [];

@@ -37,7 +37,7 @@ class ChangeAdminRole
             }
 
             $old = $admin->role;
-            $admin->forceFill(['role' => $role])->save();
+            $admin->forceFill(['role' => $role, 'is_break_glass' => $role === AdminRole::Owner && $admin->is_break_glass])->save();
 
             $this->auditLogger->record(AuditAction::AdminRoleChanged, $admin, ['old_role' => $old, 'new_role' => $role], $actor);
         });

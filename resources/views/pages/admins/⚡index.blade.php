@@ -3,8 +3,10 @@
 use App\Actions\Vault\ChangeAdminRole;
 use App\Actions\Vault\DeactivateAdmin;
 use App\Actions\Vault\InviteAdmin;
+use App\Actions\Vault\SetBreakGlass;
 use App\Actions\Vault\RevokeInvitation;
 use App\Enums\AdminRole;
+use App\Exceptions\Vault\BreakGlassNotAllowedException;
 use App\Exceptions\Vault\CannotDeactivateAdminException;
 use App\Exceptions\Vault\LastOwnerException;
 use App\Exceptions\Vault\InvitationNotAllowedException;
@@ -123,6 +125,20 @@ new #[Title('Admins')] class extends Component {
         Flux::toast(__('Role changed.'));
     }
 
+    public function setBreakGlass(int $userId, bool $on, SetBreakGlass $setBreakGlass): void
+    {
+        try {
+            $setBreakGlass->handle(User::query()->findOrFail($userId), $on, auth()->user());
+        } catch (BreakGlassNotAllowedException $exception) {
+            $this->addError('deactivate', $exception->getMessage());
+
+            return;
+        }
+
+        unset($this->activeAdmins);
+        Flux::toast($on ? __('Marked as break-glass.') : __('Break-glass mark removed.'));
+    }
+
     public function deactivate(int $userId, DeactivateAdmin $deactivateAdmin): void
     {
         try {
@@ -177,6 +193,12 @@ new #[Title('Admins')] class extends Component {
                                         <flux:select.option :value="$roleOption->value">{{ __($roleOption->label()) }}</flux:select.option>
                                     @endforeach
                                 </flux:select>
+                                @if ($admin->is_break_glass)
+                                    <flux:badge size="sm" color="amber" class="mt-1">{{ __('Break-glass') }}</flux:badge>
+                                    <flux:button size="xs" variant="ghost" wire:click="setBreakGlass({{ $admin->id }}, false)">{{ __('Remove mark') }}</flux:button>
+                                @elseif ($admin->role === \App\Enums\AdminRole::Owner)
+                                    <flux:button size="xs" variant="ghost" wire:click="setBreakGlass({{ $admin->id }}, true)" wire:confirm="{{ __('A break-glass Owner keeps the password and the local second factor when single sign-on is enforced, so the vault stays reachable when the identity provider is down. Mark this Owner?') }}">{{ __('Make break-glass') }}</flux:button>
+                                @endif
                             </td>
                             <td class="px-4 py-2">
                                 @if ($admin->two_factor_confirmed_at)

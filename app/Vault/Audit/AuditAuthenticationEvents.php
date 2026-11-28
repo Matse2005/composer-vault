@@ -32,6 +32,10 @@ class AuditAuthenticationEvents
         $method = request()->hasSession() ? request()->session()->pull(SsoController::METHOD_KEY, 'local') : 'local';
 
         $this->record(AuditAction::AdminLoggedIn, $event->user, ['method' => $method]);
+
+        if ($event->user instanceof User && $event->user->is_break_glass && $method === 'local') {
+            $this->record(AuditAction::BreakGlassLogin, $event->user);
+        }
     }
 
     public function handleTwoFactorConfirmed(TwoFactorAuthenticationConfirmed $event): void

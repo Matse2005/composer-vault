@@ -7,6 +7,7 @@ use App\Exceptions\Vault\InvalidInvitationException;
 use App\Models\Invitation;
 use App\Models\User;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Sso\SsoConfig;
 use Illuminate\Support\Facades\DB;
 use SensitiveParameter;
 
@@ -29,7 +30,9 @@ class AcceptInvitation
                 ->lockForUpdate()
                 ->first();
 
-            if ($invitation === null || ! $invitation->isUsable() || $this->emailIsTaken($invitation->email)) {
+            $enforced = app(SsoConfig::class)->enforced();
+
+            if ($invitation === null || ! $invitation->isUsable() || $this->emailIsTaken($invitation->email) || ($enforced && ! $invitation->isFirstOwner())) {
                 throw new InvalidInvitationException;
             }
 
@@ -37,6 +40,7 @@ class AcceptInvitation
                 'name' => $name,
                 'email' => $invitation->email,
                 'role' => $invitation->role,
+                'is_break_glass' => $enforced,
                 'password' => $password,
                 'email_verified_at' => now(),
             ]);
