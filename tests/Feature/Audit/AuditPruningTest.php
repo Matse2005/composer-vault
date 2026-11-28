@@ -1,33 +1,16 @@
 <?php
 
-use App\Enums\AuditAction;
 use App\Exceptions\Vault\AuditPruneRefusedException;
 use App\Models\AccessLog;
 use App\Models\AuditEntry;
 use App\Models\Invitation;
-use App\Models\Project;
 use App\Models\User;
 use App\Vault\Audit\AuditChainVerifier;
-use App\Vault\Audit\AuditLogger;
 use App\Vault\Audit\AuditPruner;
 use App\Vault\Settings\VaultSettings;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
-
-/**
- * Write one audit entry per day for the given number of days, the oldest first, ending today.
- */
-function auditDays(int $days): void
-{
-    $project = Project::factory()->create();
-
-    for ($daysAgo = $days - 1; $daysAgo >= 0; $daysAgo--) {
-        test()->travelTo(now()->subDays($daysAgo)->subHour());
-        app(AuditLogger::class)->record(AuditAction::ProjectUpdated, $project, ['day' => $daysAgo]);
-        test()->travelBack();
-    }
-}
 
 it('removes the entries past retention, keeps the rest and keeps the chain verifiable', function () {
     auditDays(10);
@@ -187,6 +170,9 @@ it('edits the retention on the page and shows what the next prune deletes', func
         ->set('auditLogDays', '90')
         ->assertSee('deletes 4 entries')
         ->call('save')
+        ->assertSee('Type DELETE to confirm')
+        ->set('typedConfirmation', 'DELETE')
+        ->call('saveConfirmed')
         ->assertHasNoErrors();
 
     expect(app(VaultSettings::class)->auditLogRetentionDays())->toBe(90);

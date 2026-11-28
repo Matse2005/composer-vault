@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\SsoRejectedException;
+use App\Models\User;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Compliance\SecurityAlerts;
 use App\Vault\Sso\SsoSignIn;
+use App\Vault\Sso\SsoTestSignIn;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -38,8 +40,14 @@ class SsoController extends Controller
     /**
      * Finish the sign-in. Every failure gives the same page and one audit entry with a reason code.
      */
-    public function callback(Request $request, SsoSignIn $signIn, AuditLogger $auditLogger): RedirectResponse|Response
+    public function callback(Request $request, SsoSignIn $signIn, AuditLogger $auditLogger, SsoTestSignIn $test): RedirectResponse|Response
     {
+        $admin = $request->user();
+
+        if ($admin instanceof User) {
+            return $test->isTestFor($request, $admin) ? $this->finishTest($request, $test, $admin) : redirect()->route('dashboard');
+        }
+
         try {
             $result = $signIn->handle($request);
         } catch (SsoRejectedException $exception) {
@@ -62,6 +70,29 @@ class SsoController extends Controller
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'));
+    }
+
+    /**
+     * Send the browser to the provider for the test sign-in of the Single sign-on page.
+     */
+    public function test(Request $request, SsoTestSignIn $test, AuditLogger $auditLogger): RedirectResponse|Response
+    {
+        try {
+            return $test->begin($request, $request->user() ?? abort(401));
+        } catch (SsoRejectedException $exception) {
+            return redirect()->route('settings.sso')->with('sso_test_failed', true);
+        }
+    }
+
+    private function finishTest(Request $request, SsoTestSignIn $test, User $admin): RedirectResponse
+    {
+        try {
+            $test->finish($request, $admin);
+        } catch (SsoRejectedException) {
+            return redirect()->route('settings.sso')->with('sso_test_failed', true);
+        }
+
+        return redirect()->route('settings.sso')->with('sso_test_passed', true);
     }
 
     private function reject(SsoRejectedException $exception, AuditLogger $auditLogger): Response

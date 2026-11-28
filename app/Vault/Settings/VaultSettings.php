@@ -6,6 +6,7 @@ use App\Enums\AlertRule;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\DecryptionFailedException;
 use App\Exceptions\Vault\InvalidAdminIpAllowlistException;
+use App\Exceptions\Vault\LockoutGuardException;
 use App\Models\User;
 use App\Models\VaultSetting;
 use App\Vault\Audit\AuditLogger;
@@ -312,11 +313,16 @@ class VaultSettings
      * Change settings. Every value is validated first and nothing is written when one fails. An empty value for an
      * optional setting returns it to its default. One audit entry holds the old and new value of every changed setting.
      *
+     * A critical change that could lock people out or delete evidence is refused, or asks for a confirmation: pass the
+     * confirmations as setting key to true, or to the word that was typed.
+     *
      * @param  array<string, mixed>  $values
+     * @param  array<string, mixed>  $confirmations
      *
      * @throws ValidationException
+     * @throws LockoutGuardException
      */
-    public function update(array $values, User $actor): void
+    public function update(array $values, User $actor, array $confirmations = []): void
     {
         $rules = self::rules();
         $unknown = array_diff(array_keys($values), array_keys($rules));
@@ -331,12 +337,88 @@ class VaultSettings
 
         $validated = $this->validate($values, $rules);
 
-        DB::transaction(function () use ($validated, $actor): void {
+        $normalised = [];
+        foreach ($validated as $key => $value) {
+            $normalised[$key] = $this->normalise($key, $value);
+        }
+
+        app(LockoutGuard::class)->assert($normalised, $this->effectiveValues(array_keys($normalised)), $actor, $confirmations);
+
+        $this->write($normalised, $actor);
+    }
+
+    /**
+     * Change settings from the console, for an operator with shell access. It is the recovery path, so it has no
+     * actor, no permission check and no lockout guard. The audit entry says the console did it, and every Owner is told.
+     *
+     * @param  array<string, mixed>  $values
+     *
+     * @throws ValidationException
+     */
+    public function updateFromConsole(array $values): void
+    {
+        $rules = self::rules();
+        $unknown = array_diff(array_keys($values), array_keys($rules));
+
+        if ($unknown !== []) {
+            throw ValidationException::withMessages([array_values($unknown)[0] => __('This setting does not exist.')]);
+        }
+
+        $validated = $this->validate($values, $rules);
+
+        $normalised = [];
+        foreach ($validated as $key => $value) {
+            $normalised[$key] = $this->normalise($key, $value);
+        }
+
+        $this->write($normalised, null);
+    }
+
+    /**
+     * Return a setting to the value of the environment, or its default, from the console.
+     */
+    public function resetFromConsole(string $key): void
+    {
+        if (in_array($key, self::SECRET_KEYS, true)) {
+            $this->clearSecretFromConsole($key);
+
+            return;
+        }
+
+        if (! array_key_exists($key, self::rules())) {
+            throw ValidationException::withMessages([$key => __('This setting does not exist.')]);
+        }
+
+        $this->write([$key => self::defaults()[$key] ?? null], null);
+    }
+
+    /**
+     * The value each given setting has now, ignoring the environment, for the lockout guard to compare with.
+     *
+     * @param  list<string>  $keys
+     * @return array<string, mixed>
+     */
+    private function effectiveValues(array $keys): array
+    {
+        $values = [];
+
+        foreach ($keys as $key) {
+            $values[$key] = $this->get($key);
+        }
+
+        return $values;
+    }
+
+    /**
+     * @param  array<string, mixed>  $normalised
+     */
+    private function write(array $normalised, ?User $actor): void
+    {
+        DB::transaction(function () use ($normalised, $actor): void {
             $changes = [];
             $current = $this->values(fresh: true);
 
-            foreach ($validated as $key => $value) {
-                $value = $this->normalise($key, $value);
+            foreach ($normalised as $key => $value) {
                 $old = array_key_exists($key, $current) ? $current[$key] : (self::defaults()[$key] ?? null);
 
                 if ($value === $old) {
@@ -354,18 +436,35 @@ class VaultSettings
                 }
             }
 
-            if ($changes !== []) {
-                $this->auditLogger->record(AuditAction::SettingsChanged, null, ['changes' => $changes], $actor);
-
-                $policyKeys = array_values(array_filter(array_keys($changes), fn (string $key): bool => Str::startsWith($key, ['retention.', 'policy.', 'security.'])));
-
-                if ($policyKeys !== []) {
-                    DB::afterCommit(fn () => app(SecurityAlerts::class)->send(AlertRule::SettingsChange, implode(',', $policyKeys), 'These settings changed by admin #'.$actor->getKey().': '.implode(', ', $policyKeys).'.'));
-                }
+            if ($changes === []) {
+                return;
             }
+
+            $this->auditLogger->record(AuditAction::SettingsChanged, null, $actor === null ? ['changes' => $changes, 'source' => 'console'] : ['changes' => $changes], $actor);
+
+            $this->raiseAlerts(array_keys($changes), $actor);
         });
 
         $this->stored = null;
+    }
+
+    /**
+     * @param  list<string>  $keys
+     */
+    private function raiseAlerts(array $keys, ?User $actor): void
+    {
+        $policyKeys = array_values(array_filter($keys, fn (string $key): bool => Str::startsWith($key, ['retention.', 'policy.', 'security.'])));
+        $by = $actor === null ? 'the console' : 'admin #'.$actor->getKey();
+
+        if ($actor === null) {
+            DB::afterCommit(fn () => app(SecurityAlerts::class)->send(AlertRule::SettingsChange, 'console:'.implode(',', $keys), 'These settings changed from the console: '.implode(', ', $keys).'.', app(SecurityAlerts::class)->otherOwners()));
+
+            return;
+        }
+
+        if ($policyKeys !== []) {
+            DB::afterCommit(fn () => app(SecurityAlerts::class)->send(AlertRule::SettingsChange, implode(',', $policyKeys), "These settings changed by {$by}: ".implode(', ', $policyKeys).'.'));
+        }
     }
 
     /**
@@ -425,6 +524,31 @@ class VaultSettings
 
         Gate::forUser($actor)->authorize(SettingsRegistry::get($key)->permission);
 
+        $this->storeSecret($key, $plain, $actor);
+    }
+
+    /**
+     * Store or clear a secret from the console. There is no actor and no permission check, because the console is the
+     * recovery path, and the audit entry says so.
+     *
+     * @throws ValidationException
+     */
+    public function setSecretFromConsole(string $key, #[SensitiveParameter] string $plain): void
+    {
+        if (! in_array($key, self::SECRET_KEYS, true)) {
+            throw ValidationException::withMessages([$key => __('This setting does not exist.')]);
+        }
+
+        $this->storeSecret($key, $plain, null);
+    }
+
+    private function clearSecretFromConsole(string $key): void
+    {
+        $this->storeSecret($key, null, null);
+    }
+
+    private function storeSecret(string $key, #[SensitiveParameter] ?string $plain, ?User $actor): void
+    {
         DB::transaction(function () use ($key, $plain, $actor): void {
             if ($plain === null || $plain === '') {
                 VaultSetting::query()->whereKey($key)->delete();
@@ -438,7 +562,7 @@ class VaultSettings
                 ]]);
             }
 
-            $this->auditLogger->record(AuditAction::SettingsChanged, null, ['changes' => [$key => ['old' => 'changed', 'new' => 'changed']]], $actor);
+            $this->auditLogger->record(AuditAction::SettingsChanged, null, $actor === null ? ['changes' => [$key => ['old' => 'changed', 'new' => 'changed']], 'source' => 'console'] : ['changes' => [$key => ['old' => 'changed', 'new' => 'changed']]], $actor);
         });
 
         $this->stored = null;

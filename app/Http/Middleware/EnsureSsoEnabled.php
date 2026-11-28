@@ -17,7 +17,7 @@ class EnsureSsoEnabled
 
     public function handle(Request $request, Closure $next): Response
     {
-        abort_unless($this->config->isActive(), 404);
+        abort_unless($this->config->isActive() || ($request->user() !== null && $this->config->isComplete()), 404);
 
         return $next($request);
     }

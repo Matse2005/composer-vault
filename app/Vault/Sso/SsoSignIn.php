@@ -95,6 +95,19 @@ class SsoSignIn
     }
 
     /**
+     * The claims of a valid ID token, for the test sign-in: the state, the code exchange and the token checks, without
+     * looking at roles, users or the second factor.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws SsoRejectedException
+     */
+    public function verifiedClaims(Request $request): array
+    {
+        return $this->claimsOf($request);
+    }
+
+    /**
      * Check the state, exchange the code and validate the ID token through the driver, and return the claims of the
      * token. The access and refresh token of the driver are never read and never stored.
      *
