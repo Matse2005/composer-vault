@@ -33,7 +33,7 @@ it('defaults to a retention of 90 days', function () {
 
 it('schedules the pruning daily', function () {
     $event = collect(app(Schedule::class)->events())
-        ->first(fn ($event) => str_contains($event->command, 'model:prune') && str_contains($event->command, 'AccessLog'));
+        ->first(fn ($event) => str_contains($event->command, 'vault:prune'));
 
     expect($event)->not->toBeNull()
         ->and($event->expression)->toBe('0 0 * * *');

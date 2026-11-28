@@ -61,6 +61,9 @@
                     <flux:sidebar.item icon="clock" :href="route('settings.access')" :current="request()->routeIs('settings.access')" wire:navigate>
                         {{ __('Access policy') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="archive-box" :href="route('settings.retention')" :current="request()->routeIs('settings.retention')" wire:navigate>
+                        {{ __('Retention') }}
+                    </flux:sidebar.item>
                     @endcan
                     @can('logs.view')
                     <flux:sidebar.item icon="shield-exclamation" :href="route('security-status')" :current="request()->routeIs('security-status')" wire:navigate>
