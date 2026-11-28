@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('access_tokens', function (Blueprint $table) {
             $table->ulid('id')->primary();
+            $table->foreignUlid('project_id')->constrained()->cascadeOnDelete();
             $table->string('name', 100);
             $table->string('token_prefix', 8)->unique();
             $table->char('token_hash', 64);

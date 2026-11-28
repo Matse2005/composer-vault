@@ -2,6 +2,7 @@
 
 use App\Actions\Vault\IssueAccessToken;
 use App\Livewire\Concerns\HasTokenForm;
+use App\Models\Project;
 use Flux\Flux;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
@@ -17,13 +18,26 @@ new #[Title('New token')] class extends Component {
     #[Locked]
     public ?string $tokenId = null;
 
+    #[Locked]
+    public string $projectId = '';
+
+    public function mount(Project $project): void
+    {
+        $this->projectId = $project->id;
+    }
+
+    public function project(): Project
+    {
+        return Project::query()->findOrFail($this->projectId);
+    }
+
     public function save(IssueAccessToken $issueAccessToken): void
     {
         $validated = $this->validateTokenForm();
 
         $issued = $issueAccessToken->handle(
+            $this->project(),
             $validated['name'],
-            $validated['projectIds'],
             $validated['allowedIps'],
             $validated['expiresAt'],
             auth()->user(),
@@ -47,19 +61,23 @@ new #[Title('New token')] class extends Component {
 
         session()->flash('flash', __('Token created.'));
 
-        $this->redirectRoute('tokens.show', $tokenId, navigate: true);
+        $this->redirectRoute('tokens.show', [$this->projectId, $tokenId], navigate: true);
     }
 }; ?>
 
 <section class="w-full max-w-2xl space-y-6">
-    <flux:heading size="xl" level="1">{{ __('New token') }}</flux:heading>
+    <div class="space-y-1">
+        <flux:text><flux:link :href="route('projects.show', $this->project())" wire:navigate>{{ $this->project()->name }}</flux:link></flux:text>
+        <flux:heading size="xl" level="1">{{ __('New server token') }}</flux:heading>
+        <flux:text>{{ __('The token can fetch the credentials of :project only. A server that deploys two projects needs two tokens.', ['project' => $this->project()->name]) }}</flux:text>
+    </div>
 
     <form wire:submit="save" class="space-y-6">
-        <x-token-fields :projects="$this->projects" />
+        <x-token-fields />
 
         <div class="flex gap-2">
             <flux:button type="submit" variant="primary">{{ __('Create token') }}</flux:button>
-            <flux:button variant="ghost" :href="route('tokens.index')" wire:navigate>{{ __('Cancel') }}</flux:button>
+            <flux:button variant="ghost" :href="route('projects.show', $this->project())" wire:navigate>{{ __('Cancel') }}</flux:button>
         </div>
     </form>
 

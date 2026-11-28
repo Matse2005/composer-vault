@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\CredentialType;
 use App\Models\Credential;
+use App\Models\Project;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -20,6 +21,7 @@ class CredentialFactory extends Factory
     public function definition(): array
     {
         return [
+            'project_id' => Project::factory(),
             'name' => fake()->words(2, true),
             'type' => CredentialType::HttpBasic,
             'host' => fake()->unique()->domainName(),

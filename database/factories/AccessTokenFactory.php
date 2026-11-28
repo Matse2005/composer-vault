@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\AccessToken;
+use App\Models\Project;
 use App\Vault\Tokens\TokenIssuer;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -31,6 +32,7 @@ class AccessTokenFactory extends Factory
     public function definition(): array
     {
         return [
+            'project_id' => Project::factory(),
             'name' => fake()->unique()->slug(2),
             'token_prefix' => Str::random(8),
             'token_hash' => hash('sha256', Str::random(40)),

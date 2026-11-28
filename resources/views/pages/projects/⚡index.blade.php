@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AccessLog;
 use App\Models\Project;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
@@ -53,8 +54,9 @@ new #[Title('Projects')] class extends Component {
 
         return Project::query()
             ->withCount(['credentials', 'accessTokens'])
+            ->addSelect(['last_fetch_at' => AccessLog::query()->select('created_at')->whereColumn('project_id', 'projects.id')->where('result', 'ok')->latest('created_at')->limit(1)])
             ->when(trim($this->search) !== '', fn ($query) => $query->where(
-                fn ($query) => $query->whereRaw("name like ? escape '!'", [$term])->orWhereRaw("slug like ? escape '!'", [$term])
+                fn ($query) => $query->whereRaw("lower(name) like lower(?) escape '!'", [$term])->orWhereRaw("lower(slug) like lower(?) escape '!'", [$term])
             ))
             ->orderBy($column, $direction)
             ->orderBy('id')
@@ -73,14 +75,14 @@ new #[Title('Projects')] class extends Component {
         @endcan
     </div>
 
-    <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" :placeholder="__('Search on name or slug')" clearable />
+    <flux:input wire:model.live.debounce.300ms="search" :aria-label="__('Search projects')" icon="magnifying-glass" :placeholder="__('Search on name or slug')" clearable />
 
     @if ($this->projects->isEmpty())
-        <div class="rounded-xl border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-600">
+        <div class="rounded-panel border border-dashed border-border-strong p-10 text-center">
             @if (trim($search) !== '')
                 <flux:text>{{ __('No projects match your search.') }}</flux:text>
             @else
-                <flux:text>{{ __('No projects yet. A project groups the credentials that a server or pipeline may fetch.') }}</flux:text>
+                <flux:text>{{ __('No projects yet. A project holds the credentials and the server tokens of one application.') }}</flux:text>
                 <div class="mt-4">
                     @can('projects.manage')
                     <flux:button variant="primary" icon="plus" :href="route('projects.create')" wire:navigate>
@@ -91,9 +93,9 @@ new #[Title('Projects')] class extends Component {
             @endif
         </div>
     @else
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="overflow-x-auto rounded-panel border border-border">
             <table class="w-full text-start text-sm">
-                <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                <thead class="bg-surface-sunken text-ink-muted">
                     <tr>
                         <th class="px-4 py-2 text-start font-medium">
                             <button type="button" wire:click="sort('name')" class="cursor-pointer font-medium">{{ __('Name') }}</button>
@@ -103,20 +105,22 @@ new #[Title('Projects')] class extends Component {
                         </th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Credentials') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Tokens') }}</th>
+                        <th class="px-4 py-2 text-start font-medium">{{ __('Last fetch') }}</th>
                         <th class="px-4 py-2 text-start font-medium">
                             <button type="button" wire:click="sort('updated_at')" class="cursor-pointer font-medium">{{ __('Updated') }}</button>
                         </th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody class="divide-y divide-border">
                     @foreach ($this->projects as $project)
                         <tr wire:key="project-{{ $project->id }}">
                             <td class="px-4 py-2">
-                                @can('projects.manage')<flux:link :href="route('projects.show', $project)" wire:navigate>{{ $project->name }}</flux:link>@else{{ $project->name }}@endcan
+                                <flux:link :href="route('projects.show', $project)" wire:navigate>{{ $project->name }}</flux:link>
                             </td>
                             <td class="px-4 py-2 font-mono text-xs">{{ $project->slug }}</td>
                             <td class="px-4 py-2">{{ $project->credentials_count }}</td>
                             <td class="px-4 py-2">{{ $project->access_tokens_count }}</td>
+                            <td class="px-4 py-2">{{ $project->last_fetch_at ? Illuminate\Support\Carbon::parse($project->last_fetch_at)->diffForHumans() : __('Never') }}</td>
                             <td class="px-4 py-2" title="{{ $project->updated_at }}">{{ $project->updated_at?->diffForHumans() }}</td>
                         </tr>
                     @endforeach

@@ -3,12 +3,14 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="print:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+    <body class="min-h-screen bg-surface text-ink">
+        <flux:sidebar sticky collapsible="mobile" class="print:hidden border-e border-border bg-surface-sunken">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
+
+            <livewire:global-search />
 
             <flux:sidebar.nav>
                 <flux:sidebar.group :heading="__('Vault')" class="grid">
@@ -20,15 +22,10 @@
                         {{ __('Projects') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('credentials.view')
-                    <flux:sidebar.item icon="key" :href="route('credentials.index')" :current="request()->routeIs('credentials.*')" wire:navigate>
-                        {{ __('Credentials') }}
-                    </flux:sidebar.item>
-                    @endcan
-                    @can('tokens.view')
-                    <flux:sidebar.item icon="ticket" :href="route('tokens.index')" :current="request()->routeIs('tokens.*')" wire:navigate>
-                        {{ __('Tokens') }}
-                    </flux:sidebar.item>
+                    @can('projects.view')
+                        @foreach (app(App\Vault\Navigation\RecentProjects::class)->forUser(auth()->user()) as $recentProject)
+                            <flux:sidebar.item :href="route('projects.show', $recentProject)" :current="request()->is('projects/'.$recentProject->id.'*')" wire:navigate class="ps-4" data-test="recent-project">{{ $recentProject->name }}</flux:sidebar.item>
+                        @endforeach
                     @endcan
                 </flux:sidebar.group>
 

@@ -129,8 +129,8 @@ new #[Title('Audit log')] class extends Component {
 
         return match (true) {
             $subject instanceof Project && $canProjects => route('projects.show', $subject),
-            $subject instanceof Credential && $canCredentials => route('credentials.edit', $subject),
-            $subject instanceof AccessToken && $canTokens => route('tokens.show', $subject),
+            $subject instanceof Credential && $canCredentials => route('credentials.edit', [$subject->project_id, $subject]),
+            $subject instanceof AccessToken && $canTokens => route('tokens.show', [$subject->project_id, $subject]),
             ($subject instanceof Invitation || $subject instanceof User) && $canManageAdmins => route('admins.index'),
             default => null,
         };
@@ -151,14 +151,14 @@ new #[Title('Audit log')] class extends Component {
     @endif
 
     <div class="grid gap-4 sm:grid-cols-3">
-        <flux:select wire:model.live="action">
+        <flux:select wire:model.live="action" :aria-label="__('Filter on action')">
             <flux:select.option value="">{{ __('All actions') }}</flux:select.option>
             @foreach (AuditAction::cases() as $case)
                 <flux:select.option value="{{ $case->value }}">{{ $case->value }}</flux:select.option>
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="actor">
+        <flux:select wire:model.live="actor" :aria-label="__('Filter on admin')">
             <flux:select.option value="">{{ __('Everyone') }}</flux:select.option>
             <flux:select.option value="system">{{ __('System') }}</flux:select.option>
             @foreach ($this->admins as $admin)
@@ -166,7 +166,7 @@ new #[Title('Audit log')] class extends Component {
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="subjectType">
+        <flux:select wire:model.live="subjectType" :aria-label="__('Filter on subject')">
             <flux:select.option value="">{{ __('All subjects') }}</flux:select.option>
             @foreach (array_keys($this->subjectTypes()) as $type)
                 <flux:select.option value="{{ $type }}">{{ $type }}</flux:select.option>
@@ -175,13 +175,13 @@ new #[Title('Audit log')] class extends Component {
     </div>
 
     @if ($this->entries->isEmpty())
-        <div class="rounded-xl border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-600">
+        <div class="rounded-panel border border-dashed border-border-strong p-10 text-center">
             <flux:text>{{ __('No audit entries match. Every change made in the admin interface is recorded here.') }}</flux:text>
         </div>
     @else
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="overflow-x-auto rounded-panel border border-border">
             <table class="w-full text-start text-sm">
-                <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                <thead class="bg-surface-sunken text-ink-muted">
                     <tr>
                         <th class="px-4 py-2 text-start font-medium">#</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Time') }}</th>
@@ -192,7 +192,7 @@ new #[Title('Audit log')] class extends Component {
                     </tr>
                 </thead>
                 @foreach ($this->entries as $entry)
-                    <tbody wire:key="entry-{{ $entry->id }}" x-data="{ open: false }" class="border-t border-zinc-200 dark:border-zinc-700">
+                    <tbody wire:key="entry-{{ $entry->id }}" x-data="{ open: false }" class="border-t border-border">
                         <tr class="cursor-pointer" x-on:click="open = !open">
                             <td class="px-4 py-2 font-mono text-xs">#{{ $entry->sequence }}</td>
                             <td class="px-4 py-2" title="{{ $entry->created_at }}">{{ $entry->created_at->diffForHumans() }}</td>
@@ -201,7 +201,7 @@ new #[Title('Audit log')] class extends Component {
                             <td class="px-4 py-2">
                                 @php($subjectUrl = $this->subjectUrl($entry->subject))
                                 @if ($entry->subject_type)
-                                    <span class="text-zinc-500">{{ class_basename($entry->subject_type) }}</span>
+                                    <span class="text-ink-subtle">{{ class_basename($entry->subject_type) }}</span>
                                     @if ($subjectUrl)
                                         <flux:link :href="$subjectUrl" wire:navigate>{{ $this->subjectLabel($entry) }}</flux:link>
                                     @else
@@ -214,7 +214,7 @@ new #[Title('Audit log')] class extends Component {
                             <td class="px-4 py-2 font-mono text-xs">{{ $entry->ip ?? '-' }}</td>
                         </tr>
                         <tr x-show="open" x-cloak>
-                            <td colspan="6" class="bg-zinc-50 px-4 py-3 dark:bg-zinc-900">
+                            <td colspan="6" class=" bg-surface-sunken px-4 py-3">
                                 <pre class="overflow-x-auto text-xs">{{ json_encode($entry->properties, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) }}</pre>
                             </td>
                         </tr>

@@ -13,11 +13,11 @@ beforeEach(function () {
 });
 
 it('counts projects, credentials and active tokens', function () {
-    Project::factory()->count(3)->create();
-    Credential::factory()->count(2)->create();
-    AccessToken::factory()->count(2)->create();
-    AccessToken::factory()->revoked()->create();
-    AccessToken::factory()->expired()->create();
+    $project = Project::factory()->count(3)->create()->first();
+    Credential::factory()->for($project)->count(2)->create();
+    AccessToken::factory()->for($project)->count(2)->create();
+    AccessToken::factory()->for($project)->revoked()->create();
+    AccessToken::factory()->for($project)->expired()->create();
 
     Livewire::test('pages::dashboard')
         ->assertSet('projectCount', 3)

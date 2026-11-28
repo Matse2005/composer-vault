@@ -122,7 +122,7 @@ it('lets an auditor read the review but not complete it', function () {
 it('requires an expiry within the policy when issuing a token', function () {
     app(VaultSettings::class)->update(['policy.token_max_lifetime_days' => 30], $this->owner);
     $project = Project::factory()->create();
-    $issue = fn (?CarbonImmutable $expiresAt) => app(IssueAccessToken::class)->handle('ci', [$project->id], null, $expiresAt, $this->owner);
+    $issue = fn (?CarbonImmutable $expiresAt) => app(IssueAccessToken::class)->handle($project, 'ci', null, $expiresAt, $this->owner);
 
     expect(fn () => $issue(null))->toThrow(TokenPolicyException::class, 'within 30 days')
         ->and(fn () => $issue(CarbonImmutable::now()->addDays(31)))->toThrow(TokenPolicyException::class)
@@ -137,7 +137,7 @@ it('requires an expiry within the policy when issuing a token', function () {
 it('does not limit tokens without a policy', function () {
     $project = Project::factory()->create();
 
-    app(IssueAccessToken::class)->handle('ci', [$project->id], null, null, $this->owner);
+    app(IssueAccessToken::class)->handle($project, 'ci', null, null, $this->owner);
 
     expect(AccessToken::query()->count())->toBe(1);
 });
@@ -148,12 +148,12 @@ it('applies the policy when the expiry of a token changes and when it is regener
     app(VaultSettings::class)->update(['policy.token_max_lifetime_days' => 30], $this->owner);
 
     expect(fn () => app(RegenerateAccessToken::class)->handle($token))->toThrow(TokenPolicyException::class)
-        ->and(fn () => app(UpdateAccessToken::class)->handle($token, 'renamed', [$project->id], null, CarbonImmutable::now()->addDays(90)))->toThrow(TokenPolicyException::class);
+        ->and(fn () => app(UpdateAccessToken::class)->handle($token, 'renamed', null, CarbonImmutable::now()->addDays(90)))->toThrow(TokenPolicyException::class);
 
-    app(UpdateAccessToken::class)->handle($token, 'renamed', [$project->id], null, null)->refresh();
+    app(UpdateAccessToken::class)->handle($token, 'renamed', null, null)->refresh();
     expect($token->fresh()->name)->toBe('renamed');
 
-    app(UpdateAccessToken::class)->handle($token, 'renamed', [$project->id], null, CarbonImmutable::now()->addDays(10));
+    app(UpdateAccessToken::class)->handle($token, 'renamed', null, CarbonImmutable::now()->addDays(10));
     app(RegenerateAccessToken::class)->handle($token->fresh());
 
     expect($token->fresh()->isRevoked())->toBeFalse();
@@ -163,9 +163,9 @@ it('shows the policy message on the token form', function () {
     app(VaultSettings::class)->update(['policy.token_max_lifetime_days' => 30], $this->owner);
     $project = Project::factory()->create();
 
-    Livewire::test('pages::tokens.create')->set('name', 'ci')->set('projectIds', [$project->id])->set('expiresOn', '')->call('save')->assertHasErrors('expiresOn');
-    Livewire::test('pages::tokens.create')->set('name', 'ci')->set('projectIds', [$project->id])->set('expiresOn', now()->addDays(40)->toDateString())->call('save')->assertHasErrors('expiresOn');
-    Livewire::test('pages::tokens.create')->set('name', 'ci')->set('projectIds', [$project->id])->set('expiresOn', now()->addDays(10)->toDateString())->call('save')->assertHasNoErrors();
+    Livewire::test('pages::tokens.create', ['project' => $project])->set('name', 'ci')->set('expiresOn', '')->call('save')->assertHasErrors('expiresOn');
+    Livewire::test('pages::tokens.create', ['project' => $project])->set('name', 'ci')->set('expiresOn', now()->addDays(40)->toDateString())->call('save')->assertHasErrors('expiresOn');
+    Livewire::test('pages::tokens.create', ['project' => $project])->set('name', 'ci')->set('expiresOn', now()->addDays(10)->toDateString())->call('save')->assertHasNoErrors();
 });
 
 it('warns when the last review is older than the interval', function () {

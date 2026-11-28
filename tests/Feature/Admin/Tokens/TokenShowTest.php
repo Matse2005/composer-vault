@@ -15,14 +15,13 @@ beforeEach(function () {
     $this->admin = User::factory()->withTwoFactor()->create();
     $this->actingAs($this->admin);
     $this->project = Project::factory()->create(['name' => 'Webshop', 'slug' => 'webshop']);
-    $this->token = AccessToken::factory()->withPlainToken()->withAllowedIps(['203.0.113.7'])->create(['name' => 'prod-web-01']);
-    $this->token->projects()->attach($this->project);
+    $this->token = AccessToken::factory()->for($this->project)->withPlainToken()->withAllowedIps(['203.0.113.7'])->create(['name' => 'prod-web-01']);
     $this->plain = AccessTokenFactory::plainTokenFor($this->token);
 });
 
 function showToken(AccessToken $token): Testable
 {
-    return Livewire::test('pages::tokens.show', ['accessToken' => $token]);
+    return Livewire::test('pages::tokens.show', ['project' => $token->project_id, 'accessToken' => $token]);
 }
 
 it('shows the current settings', function () {
@@ -30,7 +29,6 @@ it('shows the current settings', function () {
         ->assertSet('name', 'prod-web-01')
         ->assertSet('allowedIps', '203.0.113.7')
         ->assertSet('expiresOn', '')
-        ->assertSet('projectIds', [$this->project->id])
         ->assertSee('cv_'.$this->token->token_prefix.'...')
         ->assertSee('Active');
 });
@@ -44,11 +42,8 @@ it('never shows the hash or the plain token on the page', function () {
 });
 
 it('updates the settings through the action and audits the change', function () {
-    $other = Project::factory()->create();
-
     showToken($this->token)
         ->set('name', 'prod-web-02')
-        ->set('projectIds', [$other->id])
         ->set('allowedIps', "10.0.0.0/8\n198.51.100.1")
         ->set('expiresOn', now()->addWeek()->toDateString())
         ->call('save')
@@ -59,7 +54,7 @@ it('updates the settings through the action and audits the change', function () 
     expect($fresh->name)->toBe('prod-web-02')
         ->and($fresh->allowed_ips)->toBe(['10.0.0.0/8', '198.51.100.1'])
         ->and($fresh->expires_at->toDateString())->toBe(now()->addWeek()->toDateString())
-        ->and($fresh->projects()->pluck('projects.id')->all())->toBe([$other->id])
+        ->and($fresh->project_id)->toBe($this->project->id)
         ->and($fresh->token_hash)->toBe($this->token->token_hash)
         ->and(AuditEntry::query()->where('event', 'token_updated')->count())->toBe(1)
         ->and(session('flash'))->toBe('Token saved.');
@@ -72,7 +67,6 @@ it('rejects invalid settings and changes nothing', function (string $field, mixe
         ->and(AuditEntry::query()->count())->toBe(0);
 })->with([
     'no name' => ['name', ''],
-    'no project' => ['projectIds', []],
     'bad ip line' => ['allowedIps', "203.0.113.7\nnot-an-ip"],
     'past expiry' => ['expiresOn', '2020-01-01'],
 ]);
@@ -104,7 +98,7 @@ it('regenerates the token, shows the new value once and invalidates the old one'
 it('does not contain the regenerated token on a fresh page load', function () {
     $newPlain = showToken($this->token)->call('regenerate')->get('plainToken');
 
-    $this->get(route('tokens.show', $this->token))->assertOk()->assertDontSee($newPlain);
+    $this->get(route('tokens.show', [$this->project, $this->token]))->assertOk()->assertDontSee($newPlain);
 });
 
 it('refuses to regenerate a revoked token', function () {
@@ -117,7 +111,7 @@ it('refuses to regenerate a revoked token', function () {
 });
 
 it('revokes the token and audits it', function () {
-    showToken($this->token)->call('revoke')->assertHasNoErrors()->assertRedirect(route('tokens.show', $this->token));
+    showToken($this->token)->call('revoke')->assertHasNoErrors()->assertRedirect(route('tokens.show', [$this->project, $this->token]));
 
     expect($this->token->fresh()->isRevoked())->toBeTrue()
         ->and(session('flash'))->toBe('Token revoked.')
@@ -126,7 +120,7 @@ it('revokes the token and audits it', function () {
 });
 
 it('deletes the token and audits it', function () {
-    showToken($this->token)->call('delete')->assertRedirect(route('tokens.index'));
+    showToken($this->token)->call('delete')->assertRedirect(route('projects.show', $this->project));
 
     expect(AccessToken::query()->count())->toBe(0)
         ->and(AuditEntry::query()->where('event', 'token_deleted')->count())->toBe(1)
@@ -167,9 +161,9 @@ it('cannot be pointed at another token through the locked id', function () {
 });
 
 it('gives a 404 for a token that does not exist', function () {
-    $this->get(route('tokens.show', '01HZZZZZZZZZZZZZZZZZZZZZZZ'))->assertNotFound();
+    $this->get(route('tokens.show', [$this->project, '01HZZZZZZZZZZZZZZZZZZZZZZZ']))->assertNotFound();
 });
 
 it('renders the show page', function () {
-    $this->get(route('tokens.show', $this->token))->assertOk()->assertSeeLivewire('pages::tokens.show');
+    $this->get(route('tokens.show', [$this->project, $this->token]))->assertOk()->assertSeeLivewire('pages::tokens.show');
 });

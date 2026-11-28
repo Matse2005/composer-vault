@@ -45,6 +45,12 @@ new #[Title('Data processing')] class extends Component {
                 'stored' => 'Invitations table.',
                 'retention' => $settings->invitationRetentionDays().' days after the invitation expired, was accepted or was revoked.',
             ],
+            [
+                'category' => 'Recent projects',
+                'data' => 'Which projects an admin opened most recently, by account number and project, for the sidebar.',
+                'stored' => 'User recent projects table.',
+                'retention' => 'Until the project is deleted. The table is not cleared when an admin is pseudonymised: it holds only the account number.',
+            ],
         ];
     }
 }; ?>
@@ -57,9 +63,9 @@ new #[Title('Data processing')] class extends Component {
         </flux:text>
     </div>
 
-    <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+    <div class="overflow-x-auto rounded-panel border border-border">
         <table class="w-full text-start text-sm">
-            <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+            <thead class="bg-surface-sunken text-ink-muted">
                 <tr>
                     <th class="px-4 py-2 text-start font-medium">{{ __('Category') }}</th>
                     <th class="px-4 py-2 text-start font-medium">{{ __('Data') }}</th>
@@ -67,7 +73,7 @@ new #[Title('Data processing')] class extends Component {
                     <th class="px-4 py-2 text-start font-medium">{{ __('Kept for') }}</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+            <tbody class="divide-y divide-border">
                 @foreach ($this->categories() as $row)
                     <tr wire:key="category-{{ $loop->index }}">
                         <td class="px-4 py-2 font-medium">{{ __($row['category']) }}</td>

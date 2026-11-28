@@ -85,9 +85,8 @@ it('alerts once at 20 failed attempts from one address and then throttles', func
 });
 
 it('alerts when a token without an allowlist is used from a new address, and not the first time', function () {
-    [$token, $plain] = tokenWithPlain();
     $project = Project::factory()->create(['slug' => 'shop']);
-    $project->accessTokens()->attach($token);
+    [$token, $plain] = tokenWithPlain(AccessToken::factory()->for($project));
     $call = fn (string $ip) => $this->withServerVariables(['REMOTE_ADDR' => $ip])->getJson('/api/v1/projects/shop/composer-auth', ['Authorization' => 'Bearer '.$plain]);
 
     $call('198.51.100.1')->assertOk();
@@ -109,9 +108,8 @@ it('alerts when a token without an allowlist is used from a new address, and not
 });
 
 it('keeps the last 20 addresses of a token and ignores tokens with an allowlist', function () {
-    [$token, $plain] = tokenWithPlain();
     $project = Project::factory()->create(['slug' => 'shop']);
-    $project->accessTokens()->attach($token);
+    [$token, $plain] = tokenWithPlain(AccessToken::factory()->for($project));
 
     foreach (range(1, 25) as $i) {
         $this->withServerVariables(['REMOTE_ADDR' => "198.51.100.{$i}"])->getJson('/api/v1/projects/shop/composer-auth', ['Authorization' => 'Bearer '.$plain])->assertOk();
@@ -119,8 +117,7 @@ it('keeps the last 20 addresses of a token and ignores tokens with an allowlist'
 
     expect($token->fresh()->recent_ips)->toHaveCount(20)->and($token->fresh()->recent_ips[0])->toBe('198.51.100.6');
 
-    [$locked, $lockedPlain] = tokenWithPlain(AccessToken::factory()->withAllowedIps(['198.51.100.50']));
-    $project->accessTokens()->attach($locked);
+    [$locked, $lockedPlain] = tokenWithPlain(AccessToken::factory()->for($project)->withAllowedIps(['198.51.100.50']));
     $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.50'])->getJson('/api/v1/projects/shop/composer-auth', ['Authorization' => 'Bearer '.$lockedPlain])->assertOk();
 
     expect($locked->fresh()->recent_ips)->toBeNull();

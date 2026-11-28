@@ -11,10 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('access_token_project', function (Blueprint $table) {
-            $table->foreignUlid('access_token_id')->constrained()->cascadeOnDelete();
+        Schema::create('user_recent_projects', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->foreignUlid('project_id')->constrained()->cascadeOnDelete();
-            $table->primary(['access_token_id', 'project_id']);
+            $table->timestamp('visited_at');
+
+            $table->unique(['user_id', 'project_id']);
+            $table->index(['user_id', 'visited_at']);
         });
     }
 
@@ -23,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('access_token_project');
+        Schema::dropIfExists('user_recent_projects');
     }
 };

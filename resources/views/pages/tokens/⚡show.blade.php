@@ -7,6 +7,7 @@ use App\Actions\Vault\UpdateAccessToken;
 use App\Livewire\Concerns\HasTokenForm;
 use App\Models\AccessLog;
 use App\Models\AccessToken;
+use App\Models\Project;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
@@ -24,11 +25,10 @@ new #[Title('Token')] class extends Component {
     #[Locked]
     public ?string $plainToken = null;
 
-    public function mount(AccessToken $accessToken): void
+    public function mount(Project $project, AccessToken $accessToken): void
     {
         $this->tokenId = $accessToken->id;
         $this->name = $accessToken->name;
-        $this->projectIds = $accessToken->projects()->pluck('projects.id')->all();
         $this->allowedIps = $this->allowlistText($accessToken->allowed_ips);
         $this->expiresOn = $accessToken->expires_at?->toDateString() ?? '';
     }
@@ -36,7 +36,7 @@ new #[Title('Token')] class extends Component {
     #[Computed]
     public function token(): AccessToken
     {
-        return AccessToken::query()->findOrFail($this->tokenId);
+        return AccessToken::query()->with('project')->findOrFail($this->tokenId);
     }
 
     /**
@@ -61,14 +61,13 @@ new #[Title('Token')] class extends Component {
         $updateAccessToken->handle(
             $this->token,
             $validated['name'],
-            $validated['projectIds'],
             $validated['allowedIps'],
             $validated['expiresAt'],
         );
 
         session()->flash('flash', __('Token saved.'));
 
-        $this->redirectRoute('tokens.show', $this->token, navigate: true);
+        $this->redirectRoute('tokens.show', [$this->token->project_id, $this->token], navigate: true);
     }
 
     public function regenerate(RegenerateAccessToken $regenerateAccessToken): void
@@ -107,21 +106,24 @@ new #[Title('Token')] class extends Component {
         unset($this->token);
         session()->flash('flash', __('Token revoked.'));
 
-        $this->redirectRoute('tokens.show', $this->token, navigate: true);
+        $this->redirectRoute('tokens.show', [$this->token->project_id, $this->token], navigate: true);
     }
 
     public function delete(DeleteAccessToken $deleteAccessToken): void
     {
+        $projectId = $this->token->project_id;
+
         $deleteAccessToken->handle($this->token);
 
         session()->flash('flash', __('Token deleted.'));
 
-        $this->redirectRoute('tokens.index', navigate: true);
+        $this->redirectRoute('projects.show', $projectId, navigate: true);
     }
 }; ?>
 
 <section class="w-full max-w-3xl space-y-10">
     <div class="space-y-1">
+        <flux:text><flux:link :href="route('projects.show', $this->token->project)" wire:navigate>{{ $this->token->project->name }}</flux:link></flux:text>
         <flux:heading size="xl" level="1">{{ $this->token->name }}</flux:heading>
         <flux:text>
             <span class="font-mono text-xs">cv_{{ $this->token->token_prefix }}...</span>
@@ -140,7 +142,7 @@ new #[Title('Token')] class extends Component {
     <form wire:submit="save" class="space-y-6">
         <flux:heading size="lg" level="2">{{ __('Settings') }}</flux:heading>
 
-        <x-token-fields :projects="$this->projects" />
+        <x-token-fields />
 
         <flux:button type="submit" variant="primary">{{ __('Save') }}</flux:button>
     </form>
@@ -151,9 +153,9 @@ new #[Title('Token')] class extends Component {
         @if ($this->recentLogs->isEmpty())
             <flux:text>{{ __('This token has not been used yet.') }}</flux:text>
         @else
-            <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="overflow-x-auto rounded-panel border border-border">
                 <table class="w-full text-start text-sm">
-                    <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                    <thead class="bg-surface-sunken text-ink-muted">
                         <tr>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Time') }}</th>
                             <th class="px-4 py-2 text-start font-medium">{{ __('Result') }}</th>
@@ -161,7 +163,7 @@ new #[Title('Token')] class extends Component {
                             <th class="px-4 py-2 text-start font-medium">{{ __('IP') }}</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                    <tbody class="divide-y divide-border">
                         @foreach ($this->recentLogs as $log)
                             <tr wire:key="log-{{ $log->id }}">
                                 <td class="px-4 py-2" title="{{ $log->created_at }}">{{ $log->created_at->diffForHumans() }}</td>
@@ -176,7 +178,7 @@ new #[Title('Token')] class extends Component {
         @endif
     </div>
 
-    <div class="space-y-4 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+    <div class="space-y-4 rounded-panel border border-border p-5">
         <flux:heading size="lg" level="2">{{ __('Token actions') }}</flux:heading>
 
         <div class="flex flex-wrap gap-2">

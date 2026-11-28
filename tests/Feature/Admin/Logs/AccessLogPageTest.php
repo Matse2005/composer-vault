@@ -26,7 +26,7 @@ it('lists the requests with result, token, project, ip and user agent', function
     Livewire::test('pages::logs.access')
         ->assertSee('ok')
         ->assertSee('cv_AbCdEfGh...')
-        ->assertSee(route('tokens.show', $token), false)
+        ->assertSee(route('tokens.show', [$token->project_id, $token]), false)
         ->assertSee('webshop')
         ->assertSee('203.0.113.7')
         ->assertSee('composer/2.8');

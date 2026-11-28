@@ -20,7 +20,9 @@ use Livewire\Livewire;
 it('gives a role without the capability a 403 on the page', function (string $route, string $role, int $status) {
     $this->actingAs(User::factory()->withTwoFactor()->create(['role' => AdminRole::from($role)]));
 
-    $this->get(route($route))->assertStatus($status);
+    $parameters = in_array($route, ['credentials.create', 'tokens.create'], true) ? [Project::factory()->create()] : [];
+
+    $this->get(route($route, $parameters))->assertStatus($status);
 })->with([
     'admins as owner' => ['admins.index', 'owner', 200],
     'admins as admin' => ['admins.index', 'admin', 403],
@@ -41,7 +43,7 @@ it('refuses a page of the owner when the request is made by a role without the c
     $project = Project::factory()->create();
     $this->actingAs(User::factory()->withTwoFactor()->auditor()->create());
 
-    $this->get(route('projects.show', $project))->assertForbidden();
+    $this->get(route('credentials.create', $project))->assertForbidden();
 });
 
 it('hides what a role cannot use from the list and the sidebar', function () {

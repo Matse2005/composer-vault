@@ -17,18 +17,22 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
+    if (app()->environment('local')) {
+        Route::view('_styleguide', 'styleguide')->name('styleguide');
+    }
+
     Route::livewire('projects', 'pages::projects.index')->name('projects.index')->middleware('can:'.Ability::ProjectsView);
-    Route::livewire('credentials', 'pages::credentials.index')->name('credentials.index')->middleware('can:'.Ability::CredentialsView);
-    Route::livewire('tokens', 'pages::tokens.index')->name('tokens.index')->middleware('can:'.Ability::TokensView);
 
     Route::livewire('projects/create', 'pages::projects.create')->name('projects.create')->middleware('can:'.Ability::ProjectsManage);
-    Route::livewire('projects/{project}', 'pages::projects.show')->name('projects.show')->middleware('can:'.Ability::ProjectsManage);
+    Route::livewire('projects/{project}', 'pages::projects.show')->name('projects.show')->middleware('can:'.Ability::ProjectsView);
 
-    Route::livewire('credentials/create', 'pages::credentials.create')->name('credentials.create')->middleware('can:'.Ability::CredentialsManage);
-    Route::livewire('credentials/{credential}', 'pages::credentials.edit')->name('credentials.edit')->middleware('can:'.Ability::CredentialsManage);
+    Route::scopeBindings()->prefix('projects/{project}')->group(function () {
+        Route::livewire('credentials/create', 'pages::credentials.create')->name('credentials.create')->middleware('can:'.Ability::CredentialsManage);
+        Route::livewire('credentials/{credential}', 'pages::credentials.edit')->name('credentials.edit')->middleware('can:'.Ability::CredentialsManage);
 
-    Route::livewire('tokens/create', 'pages::tokens.create')->name('tokens.create')->middleware('can:'.Ability::TokensManage);
-    Route::livewire('tokens/{accessToken}', 'pages::tokens.show')->name('tokens.show')->middleware('can:'.Ability::TokensManage);
+        Route::livewire('tokens/create', 'pages::tokens.create')->name('tokens.create')->middleware('can:'.Ability::TokensManage);
+        Route::livewire('tokens/{accessToken}', 'pages::tokens.show')->name('tokens.show')->middleware('can:'.Ability::TokensManage);
+    });
 
     Route::middleware('can:'.Ability::LogsView)->group(function () {
         Route::livewire('logs/access', 'pages::logs.access')->name('logs.access');

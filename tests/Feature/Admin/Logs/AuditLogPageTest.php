@@ -54,8 +54,8 @@ it('links a subject that still exists to its page', function () {
 
     Livewire::test('pages::logs.audit')
         ->assertSee(route('projects.show', $project), false)
-        ->assertSee(route('credentials.edit', $credential), false)
-        ->assertSee(route('tokens.show', $token), false);
+        ->assertSee(route('credentials.edit', [$credential->project_id, $credential]), false)
+        ->assertSee(route('tokens.show', [$token->project_id, $token]), false);
 });
 
 it('shows the subject label of a subject that is gone', function () {

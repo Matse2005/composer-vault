@@ -62,7 +62,7 @@ new #[Title('Access log')] class extends Component {
         $to = $this->day($this->to);
 
         return AccessLog::query()
-            ->with(['accessToken:id,token_prefix', 'project:id,slug'])
+            ->with(['accessToken:id,project_id,token_prefix', 'project:id,slug'])
             ->when($result !== null, fn ($query) => $query->where('result', $result->value))
             ->when($this->token !== '', fn ($query) => $query->where('access_token_id', $this->token))
             ->when($this->project !== '', fn ($query) => $query->where('project_id', $this->project))
@@ -96,21 +96,21 @@ new #[Title('Access log')] class extends Component {
     <flux:heading size="xl" level="1">{{ __('Access log') }}</flux:heading>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <flux:select wire:model.live="result">
+        <flux:select wire:model.live="result" :aria-label="__('Filter on result')">
             <flux:select.option value="">{{ __('All results') }}</flux:select.option>
             @foreach (AccessResult::cases() as $case)
                 <flux:select.option value="{{ $case->value }}">{{ $case->value }}</flux:select.option>
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="token">
+        <flux:select wire:model.live="token" :aria-label="__('Filter on token')">
             <flux:select.option value="">{{ __('All tokens') }}</flux:select.option>
             @foreach ($this->tokens as $tokenOption)
                 <flux:select.option value="{{ $tokenOption->id }}">{{ $tokenOption->name }} (cv_{{ $tokenOption->token_prefix }}...)</flux:select.option>
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="project">
+        <flux:select wire:model.live="project" :aria-label="__('Filter on project')">
             <flux:select.option value="">{{ __('All projects') }}</flux:select.option>
             @foreach ($this->projects as $projectOption)
                 <flux:select.option value="{{ $projectOption->id }}">{{ $projectOption->name }} ({{ $projectOption->slug }})</flux:select.option>
@@ -122,13 +122,13 @@ new #[Title('Access log')] class extends Component {
     </div>
 
     @if ($this->logs->isEmpty())
-        <div class="rounded-xl border border-dashed border-zinc-300 p-10 text-center dark:border-zinc-600">
+        <div class="rounded-panel border border-dashed border-border-strong p-10 text-center">
             <flux:text>{{ __('No requests match. The API writes one row for every request to the composer-auth endpoint.') }}</flux:text>
         </div>
     @else
-        <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div class="overflow-x-auto rounded-panel border border-border">
             <table class="w-full text-start text-sm">
-                <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                <thead class="bg-surface-sunken text-ink-muted">
                     <tr>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Time') }}</th>
                         <th class="px-4 py-2 text-start font-medium">{{ __('Result') }}</th>
@@ -138,14 +138,14 @@ new #[Title('Access log')] class extends Component {
                         <th class="px-4 py-2 text-start font-medium">{{ __('User agent') }}</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <tbody class="divide-y divide-border">
                     @foreach ($this->logs as $log)
                         <tr wire:key="log-{{ $log->id }}">
                             <td class="px-4 py-2" title="{{ $log->created_at }}">{{ $log->created_at->diffForHumans() }}</td>
                             <td class="px-4 py-2 font-mono text-xs">{{ $log->result->value }}</td>
                             <td class="px-4 py-2 font-mono text-xs">
                                 @if ($log->accessToken)
-                                    @can('tokens.manage')<flux:link :href="route('tokens.show', $log->accessToken)" wire:navigate>cv_{{ $log->accessToken->token_prefix }}...</flux:link>@elsecv_{{ $log->accessToken->token_prefix }}...@endcan
+                                    @can('tokens.manage')<flux:link :href="route('tokens.show', [$log->accessToken->project_id, $log->accessToken])" wire:navigate>cv_{{ $log->accessToken->token_prefix }}...</flux:link>@elsecv_{{ $log->accessToken->token_prefix }}...@endcan
                                 @else
                                     -
                                 @endif

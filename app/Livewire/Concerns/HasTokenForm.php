@@ -2,14 +2,11 @@
 
 namespace App\Livewire\Concerns;
 
-use App\Models\Project;
 use App\Vault\Settings\VaultSettings;
 use App\Vault\Tokens\IpAllowlist;
 use Carbon\CarbonImmutable;
 use Closure;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
-use Livewire\Attributes\Computed;
 
 /**
  * The form of an access token, shared by the create and the show page.
@@ -18,9 +15,6 @@ trait HasTokenForm
 {
     public string $name = '';
 
-    /** @var array<int, string> */
-    public array $projectIds = [];
-
     /** One IP address or CIDR range per line. */
     public string $allowedIps = '';
 
@@ -28,20 +22,11 @@ trait HasTokenForm
     public string $expiresOn = '';
 
     /**
-     * @return Collection<int, Project>
-     */
-    #[Computed]
-    public function projects(): Collection
-    {
-        return Project::query()->orderBy('name')->get(['id', 'name', 'slug']);
-    }
-
-    /**
      * Validate the form.
      *
      * @param  CarbonImmutable|null  $currentExpiry  The expiry the token has now. An unchanged expiry date is accepted
      *                                               even when it is in the past, and keeps its exact time.
-     * @return array{name: string, projectIds: array<int, string>, allowedIps: array<int, string>|null, expiresAt: CarbonImmutable|null}
+     * @return array{name: string, allowedIps: array<int, string>|null, expiresAt: CarbonImmutable|null}
      */
     protected function validateTokenForm(?CarbonImmutable $currentExpiry = null): array
     {
@@ -56,22 +41,17 @@ trait HasTokenForm
 
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:100'],
-            'projectIds' => ['required', 'array', 'min:1'],
-            'projectIds.*' => ['string', Rule::exists('projects', 'id')],
             'allowedIps' => ['nullable', 'string', 'max:5000', $this->allowlistRule()],
             'expiresOn' => $expiryRules,
         ], [
             'expiresOn.required' => __('A token needs an expiry date within :days days.', ['days' => $maxDays]),
             'expiresOn.before_or_equal' => __('A token needs an expiry date within :days days.', ['days' => $maxDays]),
-            'projectIds.required' => __('Select at least one project.'),
-            'projectIds.min' => __('Select at least one project.'),
             'expiresOn.after_or_equal' => __('The expiry date must be today or later.'),
             'expiresOn.date_format' => __('Enter a valid date.'),
         ]);
 
         return [
             'name' => $validated['name'],
-            'projectIds' => array_values($validated['projectIds']),
             'allowedIps' => $this->parsedAllowlist() ?: null,
             'expiresAt' => match (true) {
                 $this->expiresOn === '' => null,

@@ -4,10 +4,8 @@ namespace App\Livewire\Concerns;
 
 use App\Enums\CredentialType;
 use App\Exceptions\Vault\HostConflictException;
-use App\Models\Project;
 use App\Vault\HostName;
 use Closure;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 use Livewire\Attributes\Computed;
@@ -33,22 +31,10 @@ trait HasCredentialForm
 
     public string $secret = '';
 
-    /** @var array<int, string> */
-    public array $projectIds = [];
-
     #[Computed]
     public function requiresUsername(): bool
     {
         return CredentialType::tryFrom($this->type)?->requiresUsername() ?? false;
-    }
-
-    /**
-     * @return Collection<int, Project>
-     */
-    #[Computed]
-    public function projects(): Collection
-    {
-        return Project::query()->orderBy('name')->get(['id', 'name', 'slug']);
     }
 
     /**
@@ -72,8 +58,6 @@ trait HasCredentialForm
                 'username' => [Rule::requiredIf($this->requiresUsername), 'nullable', 'string', 'max:255'],
                 'notes' => ['nullable', 'string', 'max:5000'],
                 'secret' => [$secretRequired ? 'required' : 'nullable', 'string', 'max:10000'],
-                'projectIds' => ['array'],
-                'projectIds.*' => ['string', Rule::exists('projects', 'id')],
             ]);
         } finally {
             $this->secret = '';

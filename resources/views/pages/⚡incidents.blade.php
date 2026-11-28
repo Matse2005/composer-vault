@@ -223,7 +223,7 @@ new #[Title('Incidents')] class extends Component {
         @if ($this->incidents->isEmpty())
             <flux:text>{{ __('No incidents recorded.') }}</flux:text>
         @else
-            <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+            <ul class="divide-y divide-border rounded-panel border border-border">
                 @foreach ($this->incidents as $incident)
                     <li wire:key="incident-{{ $incident->id }}" class="flex items-center justify-between px-4 py-2">
                         <button type="button" wire:click="select('{{ $incident->id }}')" class="cursor-pointer text-start font-medium">{{ $incident->title }}</button>
@@ -233,7 +233,7 @@ new #[Title('Incidents')] class extends Component {
             </ul>
         @endif
 
-        <form wire:submit="saveIncident" class="space-y-4 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+        <form wire:submit="saveIncident" class="space-y-4 rounded-panel border border-border p-5">
             <flux:heading size="md" level="3">{{ $selectedId ? __('Edit incident') : __('New incident') }}</flux:heading>
             <flux:input wire:model="title" :label="__('Title')" required />
             <flux:input wire:model="detectedAt" type="datetime-local" :label="__('Detected at')" required />
@@ -244,7 +244,7 @@ new #[Title('Incidents')] class extends Component {
         </form>
 
         @if ($this->selected)
-            <div class="space-y-3 rounded-xl border border-zinc-200 p-5 dark:border-zinc-700" data-test="reference-times">
+            <div class="space-y-3 rounded-panel border border-border p-5" data-test="reference-times">
                 <flux:heading size="md" level="3">{{ __('Reference times') }}</flux:heading>
                 <ul class="text-sm">
                     @foreach ($this->selected->referenceTimes() as $label => $time)

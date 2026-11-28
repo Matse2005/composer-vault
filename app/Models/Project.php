@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -25,18 +25,18 @@ class Project extends Model
     use HasFactory, HasUlids;
 
     /**
-     * @return BelongsToMany<Credential, $this>
+     * @return HasMany<Credential, $this>
      */
-    public function credentials(): BelongsToMany
+    public function credentials(): HasMany
     {
-        return $this->belongsToMany(Credential::class);
+        return $this->hasMany(Credential::class);
     }
 
     /**
-     * @return BelongsToMany<AccessToken, $this>
+     * @return HasMany<AccessToken, $this>
      */
-    public function accessTokens(): BelongsToMany
+    public function accessTokens(): HasMany
     {
-        return $this->belongsToMany(AccessToken::class);
+        return $this->hasMany(AccessToken::class);
     }
 }

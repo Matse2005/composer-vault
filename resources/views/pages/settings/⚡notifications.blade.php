@@ -278,12 +278,12 @@ new #[Title('Notifications')] class extends Component {
                 {{ $this->hasChannel() ? __('Each active rule fires at most once an hour for the same subject.') : __('No channel is set, so no alert is sent.') }}
             </flux:text>
 
-            <ul class="divide-y divide-zinc-200 rounded-xl border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+            <ul class="divide-y divide-border rounded-panel border border-border">
                 @foreach ($this->alertRules() as $rule)
                     <li class="flex items-start justify-between gap-4 px-4 py-3" wire:key="rule-{{ $rule->value }}">
                         <div>
                             <div class="font-medium">{{ __($rule->label()) }}</div>
-                            <div class="text-sm text-zinc-600 dark:text-zinc-400">{{ __($rule->trigger()) }}</div>
+                            <div class="text-sm text-ink-muted">{{ __($rule->trigger()) }}</div>
                         </div>
                         <flux:switch wire:model="rules.{{ $rule->value }}" :aria-label="__($rule->label())" />
                     </li>

@@ -5,8 +5,7 @@ use App\Actions\Vault\CreateProject;
 use App\Actions\Vault\DeleteCredential;
 use App\Actions\Vault\DeleteProject;
 use App\Actions\Vault\IssueAccessToken;
-use App\Actions\Vault\LinkCredentialToProjects;
-use App\Actions\Vault\LinkProjectToCredentials;
+use App\Actions\Vault\MoveCredential;
 use App\Actions\Vault\RegenerateAccessToken;
 use App\Actions\Vault\RevokeAccessToken;
 use App\Actions\Vault\UpdateCredential;
@@ -57,9 +56,9 @@ it('audits a credential being created with exactly one entry', function () {
     $project = Project::factory()->create();
 
     $credential = app(CreateCredential::class)->handle(
+        $project,
         ['name' => 'Magento', 'type' => CredentialType::HttpBasic, 'host' => 'repo.magento.com', 'username' => 'public-key', 'notes' => 'Ask Jane'],
         'plaintext-secret-marker',
-        [$project->id],
     );
 
     $entry = AuditEntry::query()->sole();
@@ -71,7 +70,7 @@ it('audits a credential being created with exactly one entry', function () {
             'type' => 'http-basic',
             'host' => 'repo.magento.com',
             'username' => 'public-key',
-            'project_ids' => [$project->id],
+            'project_id' => $project->id,
             'secret' => 'changed',
         ]);
 });
@@ -114,30 +113,25 @@ it('audits a credential being deleted with a label', function () {
         ->and($entry->properties->toArray())->toEqual(['name' => 'Magento', 'host' => 'repo.magento.com', 'subject_label' => 'Magento']);
 });
 
-it('audits link changes from both sides with the added and removed ids', function () {
-    $credential = Credential::factory()->create();
-    [$a, $b, $c] = Project::factory()->count(3)->create();
+it('audits moving a credential with both project ids and nothing when the project stays', function () {
+    [$from, $to] = Project::factory()->count(2)->create();
+    $credential = Credential::factory()->for($from)->create();
 
-    app(LinkCredentialToProjects::class)->handle($credential, [$a->id, $b->id]);
-    app(LinkCredentialToProjects::class)->handle($credential, [$b->id, $c->id]);
-    app(LinkProjectToCredentials::class)->handle($c, [$credential->id]);
+    app(MoveCredential::class)->handle($credential, $to);
+    app(MoveCredential::class)->handle($credential, $to);
 
-    $entries = auditEntries();
+    $entry = AuditEntry::query()->sole();
 
-    expect($entries->pluck('event')->unique()->all())->toBe(['credential_links_changed'])
-        ->and($entries)->toHaveCount(3)
-        ->and($entries[0]->properties->toArray())->toEqual(['added' => [$a->id, $b->id], 'removed' => []])
-        ->and($entries[1]->properties->toArray())->toEqual(['added' => [$c->id], 'removed' => [$a->id]])
-        ->and($entries[1]->subject_id)->toBe($credential->id)
-        ->and($entries[2]->subject_id)->toBe($c->id)
-        ->and($entries[2]->properties->toArray())->toEqual(['added' => [], 'removed' => []]);
+    expect($entry->event)->toBe('credential_moved')
+        ->and($entry->subject_id)->toBe($credential->id)
+        ->and($entry->properties->toArray())->toEqual(['from_project_id' => $from->id, 'to_project_id' => $to->id]);
 });
 
 it('audits issuing, regenerating and revoking a token', function () {
     $project = Project::factory()->create();
     $expiresAt = CarbonImmutable::parse('2027-01-01 12:00:00', 'UTC');
 
-    $issued = app(IssueAccessToken::class)->handle('prod-web-01', [$project->id], ['203.0.113.7'], $expiresAt, $this->admin);
+    $issued = app(IssueAccessToken::class)->handle($project, 'prod-web-01', ['203.0.113.7'], $expiresAt, $this->admin);
     $oldPrefix = $issued->token->token_prefix;
     $regenerated = app(RegenerateAccessToken::class)->handle($issued->token);
     app(RevokeAccessToken::class)->handle($issued->token);
@@ -150,7 +144,7 @@ it('audits issuing, regenerating and revoking a token', function () {
         ->and($entries[0]->properties->toArray())->toEqual([
             'name' => 'prod-web-01',
             'token_prefix' => $oldPrefix,
-            'project_ids' => [$project->id],
+            'project_id' => $project->id,
             'allowed_ips' => ['203.0.113.7'],
             'expires_at' => '2027-01-01T12:00:00Z',
         ])
@@ -161,7 +155,7 @@ it('audits issuing, regenerating and revoking a token', function () {
 it('refuses to issue a token when nobody is logged in and audits nothing', function () {
     $this->app['auth']->forgetGuards();
 
-    expect(fn () => app(IssueAccessToken::class)->handle('installer', [], null, null, null))
+    expect(fn () => app(IssueAccessToken::class)->handle(Project::factory()->create(), 'installer', null, null, null))
         ->toThrow(AuthorizationException::class);
 
     expect(AuditEntry::query()->count())->toBe(0);
@@ -169,14 +163,14 @@ it('refuses to issue a token when nobody is logged in and audits nothing', funct
 
 it('writes no entry when an action fails', function () {
     $project = Project::factory()->create();
-    $project->credentials()->attach(Credential::factory()->forHost('repo.magento.com')->create());
+    Credential::factory()->for($project)->forHost('repo.magento.com')->create();
     $other = Credential::factory()->forHost('repo.magento.com')->create();
 
-    expect(fn () => app(LinkCredentialToProjects::class)->handle($other, [$project->id]))->toThrow(HostConflictException::class)
+    expect(fn () => app(MoveCredential::class)->handle($other, $project))->toThrow(HostConflictException::class)
         ->and(fn () => app(CreateCredential::class)->handle(
+            $project,
             ['name' => 'Duplicate', 'type' => CredentialType::Bearer, 'host' => 'repo.magento.com'],
             'secret',
-            [$project->id],
         ))->toThrow(HostConflictException::class);
 
     expect(AuditEntry::query()->count())->toBe(0)
@@ -208,12 +202,12 @@ it('does not write an audit entry for a rotation that fails', function () {
 it('never stores a secret, ciphertext, token hash or plain token in the audit log', function () {
     $project = app(CreateProject::class)->handle(['name' => 'Shop', 'slug' => 'shop']);
     $credential = app(CreateCredential::class)->handle(
+        $project,
         ['name' => 'Magento', 'type' => CredentialType::HttpBasic, 'host' => 'repo.magento.com', 'username' => 'public-key'],
         'plaintext-secret-marker',
-        [$project->id],
     );
     app(UpdateCredential::class)->handle($credential, ['name' => 'Renamed'], 'second-plaintext-secret-marker');
-    $issued = app(IssueAccessToken::class)->handle('prod-web-01', [$project->id], null, null, $this->admin);
+    $issued = app(IssueAccessToken::class)->handle($project, 'prod-web-01', null, null, $this->admin);
     $regenerated = app(RegenerateAccessToken::class)->handle($issued->token);
     app(RevokeAccessToken::class)->handle($issued->token);
     $this->artisan('vault:rotate-key', ['--key' => vaultTestKey(2)])->assertSuccessful();

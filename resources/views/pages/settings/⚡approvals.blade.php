@@ -87,10 +87,10 @@ new #[Title('Approvals')] class extends Component {
     <div class="space-y-3">
         <flux:heading size="lg" level="2">{{ __('Waiting') }}</flux:heading>
         @forelse ($this->pending as $change)
-            <div wire:key="pending-{{ $change->id }}" class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+            <div wire:key="pending-{{ $change->id }}" class="flex flex-wrap items-center justify-between gap-3 rounded-panel border border-border p-4">
                 <div>
                     <div class="font-medium">{{ $this->describe($change) }}</div>
-                    <div class="text-sm text-zinc-600 dark:text-zinc-400">{{ __('Proposed by :name, expires :time', ['name' => $change->proposer?->name ?? __('a removed admin'), 'time' => $change->expires_at->diffForHumans()]) }}</div>
+                    <div class="text-sm text-ink-muted">{{ __('Proposed by :name, expires :time', ['name' => $change->proposer?->name ?? __('a removed admin'), 'time' => $change->expires_at->diffForHumans()]) }}</div>
                 </div>
                 <div class="flex gap-2">
                     @if ($change->proposed_by !== auth()->id())
@@ -107,7 +107,7 @@ new #[Title('Approvals')] class extends Component {
     <div class="space-y-3">
         <flux:heading size="lg" level="2">{{ __('Recently decided') }}</flux:heading>
         @forelse ($this->decided as $change)
-            <div wire:key="decided-{{ $change->id }}" class="flex justify-between rounded-lg border border-zinc-200 px-4 py-2 text-sm dark:border-zinc-700">
+            <div wire:key="decided-{{ $change->id }}" class="flex justify-between rounded-card border border-border px-4 py-2 text-sm">
                 <span>{{ $this->describe($change) }}</span>
                 <span>{{ $change->status === 'pending' ? __('expired') : __($change->status) }}</span>
             </div>
