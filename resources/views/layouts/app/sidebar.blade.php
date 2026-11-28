@@ -10,6 +10,8 @@
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
+            <livewire:global-search />
+
             <flux:sidebar.nav>
                 <flux:sidebar.group :heading="__('Vault')" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
@@ -19,6 +21,11 @@
                     <flux:sidebar.item icon="folder" :href="route('projects.index')" :current="request()->routeIs('projects.*')" wire:navigate>
                         {{ __('Projects') }}
                     </flux:sidebar.item>
+                    @endcan
+                    @can('projects.view')
+                        @foreach (app(App\Vault\Navigation\RecentProjects::class)->forUser(auth()->user()) as $recentProject)
+                            <flux:sidebar.item :href="route('projects.show', $recentProject)" :current="request()->is('projects/'.$recentProject->id.'*')" wire:navigate class="ps-4" data-test="recent-project">{{ $recentProject->name }}</flux:sidebar.item>
+                        @endforeach
                     @endcan
                 </flux:sidebar.group>
 
