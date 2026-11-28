@@ -151,14 +151,14 @@ new #[Title('Audit log')] class extends Component {
     @endif
 
     <div class="grid gap-4 sm:grid-cols-3">
-        <flux:select wire:model.live="action">
+        <flux:select wire:model.live="action" :aria-label="__('Filter on action')">
             <flux:select.option value="">{{ __('All actions') }}</flux:select.option>
             @foreach (AuditAction::cases() as $case)
                 <flux:select.option value="{{ $case->value }}">{{ $case->value }}</flux:select.option>
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="actor">
+        <flux:select wire:model.live="actor" :aria-label="__('Filter on admin')">
             <flux:select.option value="">{{ __('Everyone') }}</flux:select.option>
             <flux:select.option value="system">{{ __('System') }}</flux:select.option>
             @foreach ($this->admins as $admin)
@@ -166,7 +166,7 @@ new #[Title('Audit log')] class extends Component {
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="subjectType">
+        <flux:select wire:model.live="subjectType" :aria-label="__('Filter on subject')">
             <flux:select.option value="">{{ __('All subjects') }}</flux:select.option>
             @foreach (array_keys($this->subjectTypes()) as $type)
                 <flux:select.option value="{{ $type }}">{{ $type }}</flux:select.option>

@@ -96,21 +96,21 @@ new #[Title('Access log')] class extends Component {
     <flux:heading size="xl" level="1">{{ __('Access log') }}</flux:heading>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <flux:select wire:model.live="result">
+        <flux:select wire:model.live="result" :aria-label="__('Filter on result')">
             <flux:select.option value="">{{ __('All results') }}</flux:select.option>
             @foreach (AccessResult::cases() as $case)
                 <flux:select.option value="{{ $case->value }}">{{ $case->value }}</flux:select.option>
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="token">
+        <flux:select wire:model.live="token" :aria-label="__('Filter on token')">
             <flux:select.option value="">{{ __('All tokens') }}</flux:select.option>
             @foreach ($this->tokens as $tokenOption)
                 <flux:select.option value="{{ $tokenOption->id }}">{{ $tokenOption->name }} (cv_{{ $tokenOption->token_prefix }}...)</flux:select.option>
             @endforeach
         </flux:select>
 
-        <flux:select wire:model.live="project">
+        <flux:select wire:model.live="project" :aria-label="__('Filter on project')">
             <flux:select.option value="">{{ __('All projects') }}</flux:select.option>
             @foreach ($this->projects as $projectOption)
                 <flux:select.option value="{{ $projectOption->id }}">{{ $projectOption->name }} ({{ $projectOption->slug }})</flux:select.option>
