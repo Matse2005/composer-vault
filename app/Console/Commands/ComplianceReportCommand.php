@@ -26,6 +26,10 @@ class ComplianceReportCommand extends Command
             array_map(fn (array $row): array => [$row['control'], $row['status']->label(), $row['evidence'], $row['supports']], $report->controls()),
         );
 
+        $this->newLine();
+        $this->line('Where the security-relevant settings come from:');
+        $this->table(['Setting', 'Source'], collect($report->settingSources())->map(fn (string $source, string $key): array => [$key, $source])->values()->all());
+
         return self::SUCCESS;
     }
 }

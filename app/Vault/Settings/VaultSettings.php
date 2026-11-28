@@ -273,6 +273,35 @@ class VaultSettings
     }
 
     /**
+     * The keys of the settings that have a stored value, secrets included.
+     *
+     * @return list<string>
+     */
+    public function storedKeys(): array
+    {
+        return array_keys($this->values());
+    }
+
+    /**
+     * Determine whether a stored value still passes the rules of its definition, for the health check: a rule can
+     * change in an upgrade.
+     */
+    public function storedValueIsValid(string $key): bool
+    {
+        if (! array_key_exists($key, self::rules()) || ! array_key_exists($key, $this->values())) {
+            return true;
+        }
+
+        try {
+            $this->validate([$key => $this->values()[$key]], self::rules());
+        } catch (ValidationException) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Where the value of a setting comes from: the environment, the dashboard or the default.
      */
     public function source(string $key): string
