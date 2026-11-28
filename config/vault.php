@@ -97,6 +97,8 @@ return [
 
     'admin' => [
         'allowed_ips' => env('VAULT_ADMIN_ALLOWED_IPS', ''),
+        'session_absolute_hours' => env('VAULT_SESSION_ABSOLUTE_HOURS'),
+        'inactive_deactivate_days' => env('VAULT_ADMIN_INACTIVE_DAYS'),
     ],
 
     /*

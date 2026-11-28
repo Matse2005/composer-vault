@@ -4,6 +4,7 @@ namespace App\Vault\Audit;
 
 use App\Enums\AuditAction;
 use App\Http\Controllers\SsoController;
+use App\Http\Middleware\EnforceAbsoluteSessionLifetime;
 use App\Models\User;
 use Illuminate\Auth\Events\Login;
 use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
@@ -27,6 +28,10 @@ class AuditAuthenticationEvents
     {
         if ($event->user instanceof User) {
             $event->user->forceFill(['last_login_at' => now()])->save();
+        }
+
+        if (request()->hasSession()) {
+            request()->session()->put(EnforceAbsoluteSessionLifetime::SESSION_KEY, now()->getTimestamp());
         }
 
         $method = request()->hasSession() ? request()->session()->pull(SsoController::METHOD_KEY, 'local') : 'local';

@@ -24,6 +24,8 @@ Artisan::command('inspire', function () {
 
 Schedule::command('model:prune', ['--model' => [AccessLog::class, HealthCheckResultHistoryItem::class]])->daily();
 
+Schedule::command('vault:deactivate-inactive-admins')->daily();
+
 Schedule::command(RunHealthChecksCommand::class)->everyFiveMinutes();
 
 Schedule::command(ScheduleCheckHeartbeatCommand::class)->everyMinute();
