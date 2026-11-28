@@ -18,15 +18,14 @@ class UpdateAccessToken
     public function __construct(private AuditLogger $auditLogger) {}
 
     /**
-     * Update the settings of a token. The token value, its status and its last use are not touched. One entry is
+     * Update the settings of a token. The token value, its project, its status and its last use are not touched. A token cannot move to another project: issue a new one instead. One entry is
      * audited, with the settings that changed and their old and new value.
      *
-     * @param  array<int, string>  $projectIds
      * @param  array<int, string>|null  $allowedIps  IP addresses and CIDR ranges. Null or empty means no restriction.
      *
      * @throws InvalidArgumentException When an allowlist entry is not an IP address or CIDR range.
      */
-    public function handle(AccessToken $token, string $name, array $projectIds, ?array $allowedIps, ?CarbonImmutable $expiresAt): AccessToken
+    public function handle(AccessToken $token, string $name, ?array $allowedIps, ?CarbonImmutable $expiresAt): AccessToken
     {
         Gate::authorize(Ability::TokensManage);
 
@@ -36,7 +35,7 @@ class UpdateAccessToken
 
         $allowedIps = IpAllowlist::normalizeList($allowedIps);
 
-        return DB::transaction(function () use ($token, $name, $projectIds, $allowedIps, $expiresAt): AccessToken {
+        return DB::transaction(function () use ($token, $name, $allowedIps, $expiresAt): AccessToken {
             $changes = [];
 
             if ($token->name !== $name) {
@@ -52,15 +51,6 @@ class UpdateAccessToken
             }
 
             $token->forceFill(['name' => $name, 'allowed_ips' => $allowedIps, 'expires_at' => $expiresAt])->save();
-
-            $result = $token->projects()->sync($projectIds);
-
-            if ($result['attached'] !== [] || $result['detached'] !== []) {
-                $changes['project_ids'] = [
-                    'added' => array_map('strval', $result['attached']),
-                    'removed' => array_map('strval', $result['detached']),
-                ];
-            }
 
             $this->auditLogger->record(AuditAction::TokenUpdated, $token, $changes);
 

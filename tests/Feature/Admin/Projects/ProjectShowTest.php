@@ -1,6 +1,7 @@
 <?php
 
-use App\Enums\CredentialType;
+use App\Enums\AccessResult;
+use App\Models\AccessLog;
 use App\Models\AccessToken;
 use App\Models\AuditEntry;
 use App\Models\Credential;
@@ -46,10 +47,9 @@ it('updates the details through the action and audits the change', function () {
 
 it('warns about every composer.json when the slug is changed', function () {
     showProject($this->project)
-        ->assertDontSee('composer.json')
+        ->assertDontSee('Changing the slug breaks existing setups')
         ->set('slug', 'webshop-eu')
-        ->assertSee('composer.json')
-        ->assertSee('webshop');
+        ->assertSee('Changing the slug breaks existing setups');
 });
 
 it('saves a changed slug', function () {
@@ -75,73 +75,62 @@ it('rejects the slug of another project, an invalid slug and an empty name', fun
     'empty name' => ['name', ''],
 ]);
 
-it('lists all credentials as a checkbox list and marks the linked ones', function () {
-    $linked = Credential::factory()->ofType(CredentialType::HttpBasic)->forHost('repo.magento.com')->create(['name' => 'Magento']);
-    Credential::factory()->ofType(CredentialType::GithubOauth)->forHost('github.com')->create(['name' => 'GitHub']);
-    $this->project->credentials()->attach($linked);
+it('lists only the credentials of this project, with links to edit them', function () {
+    $mine = Credential::factory()->for($this->project)->forHost('repo.magento.com')->create(['name' => 'Magento']);
+    Credential::factory()->forHost('repo.magento.com')->create(['name' => 'Foreign credential']);
 
     showProject($this->project)
-        ->assertSet('credentialIds', [$linked->id])
-        ->assertSee('Magento (HTTP basic, repo.magento.com)')
-        ->assertSee('GitHub (GitHub OAuth token, github.com)');
+        ->assertSee('Magento')
+        ->assertSee('repo.magento.com')
+        ->assertSee(route('credentials.edit', [$this->project, $mine]), false)
+        ->assertDontSee('Foreign credential');
 });
 
-it('links and unlinks credentials through the action and audits it', function () {
-    $first = Credential::factory()->forHost('repo.magento.com')->create();
-    $second = Credential::factory()->forHost('github.com')->create();
-    $this->project->credentials()->attach($first);
-
-    showProject($this->project)
-        ->set('credentialIds', [$second->id])
-        ->call('saveCredentials')
-        ->assertHasNoErrors();
-
-    expect($this->project->credentials()->pluck('credentials.id')->all())->toBe([$second->id]);
-
-    $entry = AuditEntry::query()->where('event', 'credential_links_changed')->sole();
-
-    expect($entry->subject_id)->toBe($this->project->id)
-        ->and($entry->properties->toArray())->toEqual(['added' => [$second->id], 'removed' => [$first->id]]);
-    expect(session('flash'))->toBe('Credentials saved.');
-});
-
-it('shows a host conflict as a validation error and saves nothing', function () {
-    $keep = Credential::factory()->forHost('github.com')->create();
-    $first = Credential::factory()->forHost('repo.magento.com')->create(['name' => 'Magento one']);
-    $second = Credential::factory()->forHost('repo.magento.com')->create(['name' => 'Magento two']);
-    $this->project->credentials()->attach($keep);
-
-    showProject($this->project)
-        ->set('credentialIds', [$first->id, $second->id])
-        ->call('saveCredentials')
-        ->assertHasErrors(['credentialIds']);
-
-    expect($this->project->credentials()->pluck('credentials.id')->all())->toBe([$keep->id])
-        ->and(AuditEntry::query()->count())->toBe(0);
-});
-
-it('ignores credential ids that were not offered', function () {
-    showProject($this->project)
-        ->set('credentialIds', ['01HZZZZZZZZZZZZZZZZZZZZZZZ'])
-        ->call('saveCredentials')
-        ->assertHasErrors(['credentialIds.0']);
-
-    expect($this->project->credentials()->count())->toBe(0);
-});
-
-it('lists the linked tokens read-only with status and a link', function () {
-    $active = AccessToken::factory()->create(['name' => 'prod-web-01']);
-    $revoked = AccessToken::factory()->revoked()->create(['name' => 'old-server']);
-    AccessToken::factory()->create(['name' => 'unlinked-token']);
-    $this->project->accessTokens()->attach([$active->id, $revoked->id]);
+it('lists only the tokens of this project with status and a link', function () {
+    $active = AccessToken::factory()->for($this->project)->create(['name' => 'prod-web-01']);
+    AccessToken::factory()->for($this->project)->revoked()->create(['name' => 'old-server']);
+    AccessToken::factory()->create(['name' => 'foreign-token']);
 
     showProject($this->project)
         ->assertSee('prod-web-01')
         ->assertSee('old-server')
         ->assertSee('Active')
         ->assertSee('Revoked')
-        ->assertSee(route('tokens.show', $active), false)
-        ->assertDontSee('unlinked-token');
+        ->assertSee(route('tokens.show', [$this->project, $active]), false)
+        ->assertDontSee('foreign-token');
+});
+
+it('shows an empty state with an add button when the project has no credentials', function () {
+    $this->get(route('projects.show', $this->project))
+        ->assertOk()
+        ->assertSee('No credentials yet')
+        ->assertSee(route('credentials.create', $this->project), false);
+});
+
+it('shows the secret of no credential and the hash of no token', function () {
+    $credential = Credential::factory()->for($this->project)->create();
+    $token = AccessToken::factory()->for($this->project)->create();
+
+    $html = $this->get(route('projects.show', $this->project))->assertOk()->getContent();
+
+    expect($html)->not->toContain($token->token_hash)
+        ->and($html)->not->toContain((string) $credential->getRawOriginal('secret_ciphertext'));
+});
+
+it('shows the last successful fetch and the recent activity of the project', function () {
+    expect(showProject($this->project)->assertSee('never fetched'))->not->toBeNull();
+
+    AccessLog::factory()->create(['project_id' => $this->project->id, 'result' => AccessResult::Ok, 'ip' => '203.0.113.7']);
+    AccessLog::factory()->create(['project_id' => Project::factory()->create()->id, 'result' => AccessResult::Ok, 'ip' => '198.51.100.9']);
+
+    showProject($this->project)
+        ->assertDontSee('never fetched')
+        ->assertSee('203.0.113.7')
+        ->assertDontSee('198.51.100.9');
+});
+
+it('shows the composer snippet with the slug of the project', function () {
+    showProject($this->project)->assertSee('/api/v1/projects/webshop/composer-auth', false);
 });
 
 it('refuses to delete with a wrong confirmation', function () {
@@ -154,11 +143,19 @@ it('refuses to delete with a wrong confirmation', function () {
         ->and(AuditEntry::query()->count())->toBe(0);
 });
 
-it('deletes with the slug typed, keeps the credentials and removes the token links', function () {
-    $credential = Credential::factory()->create();
-    $token = AccessToken::factory()->create();
-    $this->project->credentials()->attach($credential);
-    $this->project->accessTokens()->attach($token);
+it('lists what goes with the project in the delete modal', function () {
+    Credential::factory()->for($this->project)->create(['name' => 'Magento', 'host' => 'repo.magento.com']);
+    AccessToken::factory()->for($this->project)->create(['name' => 'prod-web-01']);
+
+    showProject($this->project)
+        ->assertSee('Credential Magento')
+        ->assertSee('Server token prod-web-01');
+});
+
+it('deletes with the slug typed and removes its credentials and tokens', function () {
+    $credential = Credential::factory()->for($this->project)->create();
+    $token = AccessToken::factory()->for($this->project)->create();
+    $foreign = Credential::factory()->create();
 
     showProject($this->project)
         ->set('deleteConfirmation', 'webshop')
@@ -166,22 +163,16 @@ it('deletes with the slug typed, keeps the credentials and removes the token lin
         ->assertHasNoErrors()
         ->assertRedirect(route('projects.index'));
 
-    expect(Project::query()->count())->toBe(0)
-        ->and($credential->fresh())->not->toBeNull()
-        ->and($token->fresh())->not->toBeNull()
-        ->and($token->projects()->count())->toBe(0)
+    expect(Project::query()->count())->toBe(1)
+        ->and($credential->fresh())->toBeNull()
+        ->and($token->fresh())->toBeNull()
+        ->and($foreign->fresh())->not->toBeNull()
         ->and(session('flash'))->toBe('Project deleted.');
 
     $entry = AuditEntry::query()->where('event', 'project_deleted')->sole();
 
     expect($entry->subject_id)->toBe($this->project->id)
         ->and($entry->properties->toArray())->toEqual(['name' => 'Webshop', 'slug' => 'webshop', 'subject_label' => 'Webshop']);
-});
-
-it('explains the consequences in the delete modal', function () {
-    showProject($this->project)
-        ->assertSee('lose access to this project')
-        ->assertSee('credentials stay');
 });
 
 it('cannot be pointed at another project through the locked id', function () {

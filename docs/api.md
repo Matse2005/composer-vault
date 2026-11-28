@@ -47,7 +47,7 @@ The body is always `{"error":"<code>"}` with nothing else.
 |---|---|---|
 | 401 | `unauthenticated` | Missing, malformed, unknown, revoked or expired token |
 | 403 | `forbidden` | Valid token, request IP not in the token's allowlist |
-| 404 | `not_found` | Project does not exist, or the token is not linked to it |
+| 404 | `not_found` | Project does not exist, or the token belongs to another project |
 | 429 | `too_many_requests` | Rate limit hit; the `Retry-After` header is set |
 
 ## Headers on every response

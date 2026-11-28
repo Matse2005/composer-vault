@@ -5,9 +5,11 @@ namespace App\Actions\Vault;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\HostConflictException;
 use App\Models\Credential;
+use App\Models\Project;
 use App\Vault\Audit\AuditLogger;
 use App\Vault\Authorization\Ability;
 use App\Vault\HostConflictGuard;
+use App\Vault\HostName;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use SensitiveParameter;
@@ -20,31 +22,32 @@ class CreateCredential
     ) {}
 
     /**
-     * Create a credential with an encrypted secret and link it to projects, all or nothing.
+     * Create a credential with an encrypted secret in a project. A credential belongs to exactly one project, and a
+     * project holds one credential per host.
      *
      * @param  array{name: string, type: mixed, host: string, username?: string|null, notes?: string|null}  $attributes
-     * @param  array<int, string>  $projectIds
      *
      * @throws HostConflictException
      */
-    public function handle(array $attributes, #[SensitiveParameter] string $secret, array $projectIds): Credential
+    public function handle(Project $project, array $attributes, #[SensitiveParameter] string $secret): Credential
     {
         Gate::authorize(Ability::CredentialsManage);
 
-        return DB::transaction(function () use ($attributes, $secret, $projectIds): Credential {
+        return DB::transaction(function () use ($project, $attributes, $secret): Credential {
             $credential = new Credential($attributes);
+            $credential->project_id = $project->getKey();
             $credential->setSecret($secret);
-            $credential->save();
 
-            $this->hostConflictGuard->assertCanLinkToProjects($credential, $projectIds);
-            $credential->projects()->sync($projectIds);
+            $this->hostConflictGuard->assertHostIsFree($project, HostName::normalize($credential->host));
+
+            $credential->save();
 
             $this->auditLogger->record(AuditAction::CredentialCreated, $credential, [
                 'name' => $credential->name,
                 'type' => $credential->type,
                 'host' => $credential->host,
                 'username' => $credential->username,
-                'project_ids' => array_values($projectIds),
+                'project_id' => $project->getKey(),
                 'secret' => 'changed',
             ]);
 

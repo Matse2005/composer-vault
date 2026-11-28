@@ -9,8 +9,7 @@ use App\Actions\Vault\DeleteCredential;
 use App\Actions\Vault\DeleteProject;
 use App\Actions\Vault\InviteAdmin;
 use App\Actions\Vault\IssueAccessToken;
-use App\Actions\Vault\LinkCredentialToProjects;
-use App\Actions\Vault\LinkProjectToCredentials;
+use App\Actions\Vault\MoveCredential;
 use App\Actions\Vault\RegenerateAccessToken;
 use App\Actions\Vault\RevokeAccessToken;
 use App\Actions\Vault\RevokeInvitation;
@@ -40,13 +39,12 @@ function roleMatrix(): array
         'create project' => [fn () => app(CreateProject::class)->handle(['name' => 'Shop', 'slug' => 'shop-'.fake()->unique()->word()]), $manage],
         'update project' => [fn () => app(UpdateProject::class)->handle(Project::factory()->create(), ['name' => 'Renamed']), $manage],
         'delete project' => [fn () => app(DeleteProject::class)->handle(Project::factory()->create()), $manage],
-        'create credential' => [fn () => app(CreateCredential::class)->handle(['name' => 'Key', 'type' => CredentialType::Bearer, 'host' => 'example.com'], 'secret-value', []), $manage],
+        'create credential' => [fn () => app(CreateCredential::class)->handle(Project::factory()->create(), ['name' => 'Key', 'type' => CredentialType::Bearer, 'host' => 'example.com'], 'secret-value'), $manage],
         'update credential' => [fn () => app(UpdateCredential::class)->handle(Credential::factory()->create(), ['name' => 'Renamed']), $manage],
         'delete credential' => [fn () => app(DeleteCredential::class)->handle(Credential::factory()->create()), $manage],
-        'link credential to projects' => [fn () => app(LinkCredentialToProjects::class)->handle(Credential::factory()->create(), []), $manage],
-        'link project to credentials' => [fn () => app(LinkProjectToCredentials::class)->handle(Project::factory()->create(), []), $manage],
-        'issue token' => [fn () => app(IssueAccessToken::class)->handle('ci', [], null, null, auth()->user()), $manage],
-        'update token' => [fn () => app(UpdateAccessToken::class)->handle(AccessToken::factory()->create(), 'renamed', [], null, null), $manage],
+        'move credential' => [fn () => app(MoveCredential::class)->handle(Credential::factory()->create(), Project::factory()->create()), $manage],
+        'issue token' => [fn () => app(IssueAccessToken::class)->handle(Project::factory()->create(), 'ci', null, null, auth()->user()), $manage],
+        'update token' => [fn () => app(UpdateAccessToken::class)->handle(AccessToken::factory()->create(), 'renamed', null, null), $manage],
         'regenerate token' => [fn () => app(RegenerateAccessToken::class)->handle(AccessToken::factory()->create()), $manage],
         'revoke token' => [fn () => app(RevokeAccessToken::class)->handle(AccessToken::factory()->create()), $manage],
         'delete token' => [fn () => app(DeleteAccessToken::class)->handle(AccessToken::factory()->create()), $manage],

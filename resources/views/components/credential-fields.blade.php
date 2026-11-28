@@ -1,6 +1,5 @@
 @props([
     'types',
-    'projects',
     'requiresUsername' => false,
     'secretHelp' => null,
 ])
@@ -51,18 +50,3 @@
     <flux:error name="notes" />
 </flux:field>
 
-<div class="space-y-2">
-    <flux:label>{{ __('Projects') }}</flux:label>
-    @forelse ($projects as $project)
-        <flux:checkbox
-            wire:key="project-{{ $project->id }}"
-            wire:model="projectIds"
-            :value="$project->id"
-            :label="$project->name.' ('.$project->slug.')'"
-        />
-    @empty
-        <flux:text>{{ __('There are no projects yet.') }}</flux:text>
-    @endforelse
-    <flux:error name="projectIds" />
-    <flux:error name="projectIds.0" />
-</div>

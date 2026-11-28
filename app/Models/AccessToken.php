@@ -10,11 +10,12 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 
 /**
  * @property string $id
+ * @property string $project_id
+ * @property-read Project $project
  * @property string $name
  * @property string $token_prefix
  * @property string $token_hash
@@ -51,11 +52,11 @@ class AccessToken extends Model
     }
 
     /**
-     * @return BelongsToMany<Project, $this>
+     * @return BelongsTo<Project, $this>
      */
-    public function projects(): BelongsToMany
+    public function project(): BelongsTo
     {
-        return $this->belongsToMany(Project::class);
+        return $this->belongsTo(Project::class);
     }
 
     /**

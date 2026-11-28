@@ -4,6 +4,7 @@ use App\Models\AccessToken;
 use App\Models\AuditEntry;
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
@@ -15,8 +16,8 @@ beforeEach(function () {
 
 function createToken(array $values = []): Testable
 {
-    $values += ['name' => 'prod-web-01', 'projectIds' => [test()->project->id]];
-    $component = Livewire::test('pages::tokens.create');
+    $values += ['name' => 'prod-web-01'];
+    $component = Livewire::test('pages::tokens.create', ['project' => test()->project]);
 
     foreach ($values as $field => $value) {
         $component->set($field, $value);
@@ -38,7 +39,7 @@ it('issues a token through the action with the settings and audits it', function
         ->and($token->expires_at->toDateString())->toBe(now()->addMonth()->toDateString())
         ->and($token->expires_at->format('H:i:s'))->toBe('23:59:59')
         ->and($token->created_by)->toBe($this->admin->id)
-        ->and($token->projects()->pluck('projects.id')->all())->toBe([$this->project->id]);
+        ->and($token->project_id)->toBe($this->project->id);
 
     $entry = AuditEntry::query()->where('event', 'token_issued')->sole();
 
@@ -78,7 +79,7 @@ it('forgets the token when the modal is closed and goes to the token', function 
     $component->call('closeTokenModal')
         ->assertSet('plainToken', null)
         ->assertSet('tokenId', null)
-        ->assertRedirect(route('tokens.show', $token));
+        ->assertRedirect(route('tokens.show', [$this->project, $token]));
 
     expect(session('flash'))->toBe('Token created.');
 });
@@ -87,28 +88,23 @@ it('does not contain the token on a fresh page load or on the token page', funct
     $plain = createToken()->get('plainToken');
     $token = AccessToken::query()->sole();
 
-    $this->get(route('tokens.create'))->assertOk()->assertDontSee($plain);
-    $this->get(route('tokens.show', $token))->assertOk()->assertDontSee($plain)->assertDontSee($token->token_hash);
-    $this->get(route('tokens.index'))->assertOk()->assertDontSee($plain);
+    $this->get(route('tokens.create', $this->project))->assertOk()->assertDontSee($plain);
+    $this->get(route('tokens.show', [$this->project, $token]))->assertOk()->assertDontSee($plain)->assertDontSee($token->token_hash);
+    $this->get(route('projects.show', $this->project))->assertOk()->assertDontSee($plain);
 });
 
 it('cannot be given a plain token from the client', function () {
-    expect(fn () => Livewire::test('pages::tokens.create')->set('plainToken', 'cv_'.str_repeat('a', 40)))->toThrow(Exception::class);
+    expect(fn () => Livewire::test('pages::tokens.create', ['project' => test()->project])->set('plainToken', 'cv_'.str_repeat('a', 40)))->toThrow(Exception::class);
 });
 
-it('requires a name and at least one project', function (array $values, string $field) {
+it('requires a name', function (array $values, string $field) {
     createToken($values)->assertHasErrors([$field]);
 
     expect(AccessToken::query()->count())->toBe(0);
 })->with([
     'no name' => [['name' => ''], 'name'],
     'name too long' => [['name' => str_repeat('a', 101)], 'name'],
-    'no project' => [['projectIds' => []], 'projectIds'],
 ]);
-
-it('rejects a project that does not exist', function () {
-    createToken(['projectIds' => ['01HZZZZZZZZZZZZZZZZZZZZZZZ']])->assertHasErrors(['projectIds.0']);
-});
 
 it('names the line of an invalid allowlist entry', function (string $text, string $message) {
     createToken(['allowedIps' => $text])->assertHasErrors(['allowedIps'])->assertSee($message);
@@ -153,7 +149,7 @@ it('keeps the expiry optional', function () {
 });
 
 it('renders the create page with a native date input', function () {
-    $this->get(route('tokens.create'))
+    $this->get(route('tokens.create', $this->project))
         ->assertOk()
         ->assertSeeLivewire('pages::tokens.create')
         ->assertSee('type="date"', false);

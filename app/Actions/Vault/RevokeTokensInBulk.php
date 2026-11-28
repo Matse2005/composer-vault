@@ -29,7 +29,7 @@ class RevokeTokensInBulk
             $query = AccessToken::query()->whereNull('revoked_at');
 
             if ($project !== null) {
-                $query->whereHas('projects', fn ($projects) => $projects->whereKey($project->getKey()));
+                $query->where('project_id', $project->getKey());
             }
 
             $count = $query->update(['revoked_at' => now()]);

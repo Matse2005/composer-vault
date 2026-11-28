@@ -19,9 +19,9 @@ class ComposerAuthController extends Controller
     public function __construct(private ComposerAuthBuilder $composerAuthBuilder) {}
 
     /**
-     * Return the Composer credentials of the project that the authenticated token is linked to.
+     * Return the Composer credentials of the project that the authenticated token belongs to.
      *
-     * Both queries run on every request, and an unknown project and a project the token is not linked to
+     * Both queries run on every request, and an unknown project and a project the token does not belong to
      * produce the same response through the same code path. The project is never bound by route model binding,
      * because binding would answer before authentication and reveal which slugs exist.
      */
@@ -30,7 +30,7 @@ class ComposerAuthController extends Controller
         /** @var AccessToken $token */
         $token = $request->attributes->get(RequestAttributes::ACCESS_TOKEN);
 
-        $linkedProject = $token->projects()->where('slug', $slug)->first();
+        $linkedProject = $token->project()->where('slug', $slug)->first();
         $projectExists = Project::query()->where('slug', $slug)->exists();
 
         if ($linkedProject === null) {

@@ -7,6 +7,7 @@ use App\Models\AccessLog;
 use App\Models\AccessToken;
 use App\Models\Credential;
 use App\Models\Project;
+use Database\Factories\AccessTokenFactory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Testing\TestResponse;
@@ -20,27 +21,22 @@ function composerAuthRequest(string $plainToken, string $slug, string $ip = '203
 }
 
 /**
- * Create a token that is linked to the given projects.
+ * Create a token that belongs to the given project.
  *
  * @return array{AccessToken, string}
  */
-function tokenForProjects(Project ...$projects): array
+function tokenForProject(Project $project, ?AccessTokenFactory $factory = null): array
 {
-    [$token, $plain] = tokenWithPlain();
-    $token->projects()->attach(array_map(fn (Project $project) => $project->id, $projects));
-
-    return [$token, $plain];
+    return tokenWithPlain(($factory ?? AccessToken::factory())->for($project));
 }
 
 it('returns the credentials of the project in the contract format', function () {
     $project = Project::factory()->create(['slug' => 'shop']);
-    $project->credentials()->attach([
-        Credential::factory()->ofType(CredentialType::HttpBasic)->forHost('repo.magento.com')->withSecret('private-key')->create(['username' => 'public-key'])->id,
-        Credential::factory()->ofType(CredentialType::Bearer)->forHost('packages.example.com')->withSecret('bearer-token')->create()->id,
-        Credential::factory()->ofType(CredentialType::GithubOauth)->forHost('github.com')->withSecret('github-token')->create()->id,
-        Credential::factory()->ofType(CredentialType::GitlabToken)->forHost('gitlab.com')->withSecret('gitlab-token')->create()->id,
-    ]);
-    [, $plain] = tokenForProjects($project);
+    Credential::factory()->for($project)->ofType(CredentialType::HttpBasic)->forHost('repo.magento.com')->withSecret('private-key')->create(['username' => 'public-key']);
+    Credential::factory()->for($project)->ofType(CredentialType::Bearer)->forHost('packages.example.com')->withSecret('bearer-token')->create();
+    Credential::factory()->for($project)->ofType(CredentialType::GithubOauth)->forHost('github.com')->withSecret('github-token')->create();
+    Credential::factory()->for($project)->ofType(CredentialType::GitlabToken)->forHost('gitlab.com')->withSecret('gitlab-token')->create();
+    [, $plain] = tokenForProject($project);
 
     $response = composerAuthRequest($plain, 'shop');
 
@@ -58,7 +54,7 @@ it('returns the credentials of the project in the contract format', function () 
 });
 
 it('returns exactly an empty object for a project without credentials', function () {
-    [, $plain] = tokenForProjects(Project::factory()->create(['slug' => 'empty-project']));
+    [, $plain] = tokenForProject(Project::factory()->create(['slug' => 'empty-project']));
 
     $response = composerAuthRequest($plain, 'empty-project');
 
@@ -69,25 +65,26 @@ it('returns exactly an empty object for a project without credentials', function
 it('gives each project its own credentials for the same host', function () {
     $first = Project::factory()->create(['slug' => 'first']);
     $second = Project::factory()->create(['slug' => 'second']);
-    $first->credentials()->attach(Credential::factory()->forHost('repo.magento.com')->withSecret('first-secret')->create(['username' => 'first-user']));
-    $second->credentials()->attach(Credential::factory()->forHost('repo.magento.com')->withSecret('second-secret')->create(['username' => 'second-user']));
-    [, $plain] = tokenForProjects($first, $second);
+    Credential::factory()->for($first)->forHost('repo.magento.com')->withSecret('first-secret')->create(['username' => 'first-user']);
+    Credential::factory()->for($second)->forHost('repo.magento.com')->withSecret('second-secret')->create(['username' => 'second-user']);
+    [, $firstPlain] = tokenForProject($first);
+    [, $secondPlain] = tokenForProject($second);
 
-    expect(composerAuthRequest($plain, 'first')->json()['http-basic']['repo.magento.com'])
+    expect(composerAuthRequest($firstPlain, 'first')->json()['http-basic']['repo.magento.com'])
         ->toBe(['username' => 'first-user', 'password' => 'first-secret'])
-        ->and(composerAuthRequest($plain, 'second')->json()['http-basic']['repo.magento.com'])
+        ->and(composerAuthRequest($secondPlain, 'second')->json()['http-basic']['repo.magento.com'])
         ->toBe(['username' => 'second-user', 'password' => 'second-secret']);
 });
 
-it('answers an unknown project and an unlinked project identically', function () {
-    $linked = Project::factory()->create(['slug' => 'linked']);
+it('answers an unknown project and another project identically', function () {
+    $own = Project::factory()->create(['slug' => 'own']);
     $existing = Project::factory()->create(['slug' => 'existing']);
-    $existing->credentials()->attach(Credential::factory()->withSecret('hidden-secret')->create());
-    [, $tokenForUnknown] = tokenForProjects($linked);
-    [, $tokenForUnlinked] = tokenForProjects($linked);
+    Credential::factory()->for($existing)->withSecret('hidden-secret')->create();
+    [, $tokenForUnknown] = tokenForProject($own);
+    [, $tokenForOther] = tokenForProject($own);
 
     $unknown = composerAuthRequest($tokenForUnknown, 'does-not-exist');
-    $unlinked = composerAuthRequest($tokenForUnlinked, 'existing');
+    $unlinked = composerAuthRequest($tokenForOther, 'existing');
 
     assertApiError($unknown, 404, 'not_found');
     assertApiError($unlinked, 404, 'not_found');
@@ -100,10 +97,10 @@ it('answers an unknown project and an unlinked project identically', function ()
         ->and($unlinked->getContent())->not->toContain('hidden-secret');
 });
 
-it('logs an unknown project and an unlinked project with different results', function () {
-    $linked = Project::factory()->create(['slug' => 'linked']);
-    $existing = Project::factory()->create(['slug' => 'existing']);
-    [$token, $plain] = tokenForProjects($linked);
+it('logs an unknown project and another project with different results', function () {
+    $own = Project::factory()->create(['slug' => 'own']);
+    Project::factory()->create(['slug' => 'existing']);
+    [$token, $plain] = tokenForProject($own);
 
     composerAuthRequest($plain, 'does-not-exist');
     composerAuthRequest($plain, 'existing');
@@ -121,12 +118,12 @@ it('logs an unknown project and an unlinked project with different results', fun
         ->and($logs[1]->access_token_id)->toBe($token->id);
 });
 
-it('runs the same queries for an unknown and an unlinked project', function () {
+it('runs the same queries for an unknown and another project', function () {
     $this->freezeTime();
-    $linked = Project::factory()->create(['slug' => 'linked']);
+    $own = Project::factory()->create(['slug' => 'own']);
     Project::factory()->create(['slug' => 'existing']);
-    [, $plain] = tokenForProjects($linked);
-    composerAuthRequest($plain, 'linked');
+    [, $plain] = tokenForProject($own);
+    composerAuthRequest($plain, 'own');
     composerAuthRequest($plain, 'warm-up-missing');
     $queryCount = function (string $slug) use ($plain): int {
         DB::flushQueryLog();
@@ -143,7 +140,7 @@ it('runs the same queries for an unknown and an unlinked project', function () {
 
 it('logs a served request with the project', function () {
     $project = Project::factory()->create(['slug' => 'shop']);
-    [$token, $plain] = tokenForProjects($project);
+    [$token, $plain] = tokenForProject($project);
 
     composerAuthRequest($plain, 'shop');
 
@@ -157,7 +154,7 @@ it('logs a served request with the project', function () {
 
 it('does not serve credentials to a revoked, expired or restricted token', function () {
     $project = Project::factory()->create(['slug' => 'shop']);
-    $project->credentials()->attach(Credential::factory()->withSecret('guarded-secret')->create());
+    Credential::factory()->for($project)->withSecret('guarded-secret')->create();
     $cases = [
         [AccessToken::factory()->revoked(), 401],
         [AccessToken::factory()->expired(), 401],
@@ -165,8 +162,7 @@ it('does not serve credentials to a revoked, expired or restricted token', funct
     ];
 
     foreach ($cases as [$factory, $status]) {
-        [$token, $plain] = tokenWithPlain($factory);
-        $token->projects()->attach($project);
+        [, $plain] = tokenForProject($project, $factory);
 
         $response = composerAuthRequest($plain, 'shop');
 
@@ -178,11 +174,10 @@ it('does not serve credentials to a revoked, expired or restricted token', funct
 it('answers a decryption failure with a bare 500 and no partial credentials', function () {
     Exceptions::fake();
     $project = Project::factory()->create(['slug' => 'shop']);
-    $good = Credential::factory()->forHost('good.example.com')->withSecret('good-secret')->create();
-    $bad = Credential::factory()->forHost('bad.example.com')->withSecret('bad-secret')->create();
-    $project->credentials()->attach([$good->id, $bad->id]);
+    Credential::factory()->for($project)->forHost('good.example.com')->withSecret('good-secret')->create();
+    $bad = Credential::factory()->for($project)->forHost('bad.example.com')->withSecret('bad-secret')->create();
     DB::table('credentials')->where('id', $bad->id)->update(['secret_ciphertext' => base64_encode('corrupted')]);
-    [, $plain] = tokenForProjects($project);
+    [, $plain] = tokenForProject($project);
 
     $response = composerAuthRequest($plain, 'shop');
 
@@ -195,8 +190,8 @@ it('answers a decryption failure with a bare 500 and no partial credentials', fu
 
 it('does not write a secret to the access log', function () {
     $project = Project::factory()->create(['slug' => 'shop']);
-    $project->credentials()->attach(Credential::factory()->withSecret('plaintext-secret-marker')->create());
-    [, $plain] = tokenForProjects($project);
+    Credential::factory()->for($project)->withSecret('plaintext-secret-marker')->create();
+    [, $plain] = tokenForProject($project);
 
     composerAuthRequest($plain, 'shop');
 
@@ -204,11 +199,11 @@ it('does not write a secret to the access log', function () {
         ->not->toContain($plain);
 });
 
-it('does not serve a project to a token that is linked to another project only', function () {
+it('does not serve a project to a token that belongs to another project', function () {
     $mine = Project::factory()->create(['slug' => 'mine']);
     $other = Project::factory()->create(['slug' => 'other']);
-    $other->credentials()->attach(Credential::factory()->withSecret('other-secret')->create());
-    [, $plain] = tokenForProjects($mine);
+    Credential::factory()->for($other)->withSecret('other-secret')->create();
+    [, $plain] = tokenForProject($mine);
 
     $response = composerAuthRequest($plain, 'other');
 

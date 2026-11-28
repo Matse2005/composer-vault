@@ -12,15 +12,15 @@ beforeEach(function () {
 
 it('lists projects with their credential and token counts', function () {
     $project = Project::factory()->create(['name' => 'Webshop', 'slug' => 'webshop']);
-    $project->credentials()->attach(Credential::factory()->count(2)->create());
-    $project->accessTokens()->attach(AccessToken::factory()->count(3)->create());
+    Credential::factory()->count(2)->for($project)->sequence(['host' => 'a.example.com'], ['host' => 'b.example.com'])->create();
+    AccessToken::factory()->count(3)->for($project)->create();
     Project::factory()->create(['name' => 'Blog', 'slug' => 'blog']);
 
     Livewire::test('pages::projects.index')
         ->assertSee('Webshop')
         ->assertSee('webshop')
         ->assertSee('Blog')
-        ->assertSeeInOrder(['Webshop', '2', '3']);
+        ->assertSeeInOrder(['Webshop', '2', '3', 'Never']);
 });
 
 it('searches on name and slug', function () {

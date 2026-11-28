@@ -12,7 +12,9 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->admin = User::factory()->withTwoFactor()->create();
     $this->actingAs($this->admin);
+    $this->project = Project::factory()->create(['name' => 'Webshop EU']);
     $this->credential = Credential::factory()
+        ->for($this->project)
         ->ofType(CredentialType::HttpBasic)
         ->forHost('repo.magento.com')
         ->withSecret('original-secret-marker')
@@ -21,7 +23,7 @@ beforeEach(function () {
 
 function editCredential(Credential $credential): Testable
 {
-    return Livewire::test('pages::credentials.edit', ['credential' => $credential]);
+    return Livewire::test('pages::credentials.edit', ['project' => $credential->project_id, 'credential' => $credential]);
 }
 
 /**
@@ -105,10 +107,8 @@ it('requires a username for http-basic only', function () {
         ->and($this->credential->fresh()->username)->toBeNull();
 });
 
-it('rejects a host change that conflicts with another credential of a linked project', function () {
-    $project = Project::factory()->create();
-    $other = Credential::factory()->forHost('github.com')->create();
-    $project->credentials()->attach([$this->credential->id, $other->id]);
+it('rejects a host change that conflicts with another credential of the same project', function () {
+    Credential::factory()->for($this->project)->forHost('github.com')->create();
 
     editCredential($this->credential)->set('host', 'github.com')->call('save')->assertHasErrors(['host']);
 
@@ -116,53 +116,64 @@ it('rejects a host change that conflicts with another credential of a linked pro
         ->and(AuditEntry::query()->count())->toBe(0);
 });
 
-it('links and unlinks projects together with the other changes', function () {
-    [$first, $second] = Project::factory()->count(2)->create();
-    $this->credential->projects()->attach($first);
+it('accepts a host change to a host that only another project holds', function () {
+    Credential::factory()->forHost('github.com')->create();
 
-    $component = editCredential($this->credential)
-        ->assertSet('projectIds', [$first->id])
-        ->set('projectIds', [$second->id])
-        ->set('name', 'Renamed')
-        ->call('save')
-        ->assertHasNoErrors();
+    editCredential($this->credential)->set('host', 'github.com')->call('save')->assertHasNoErrors();
 
-    expect($this->credential->projects()->pluck('projects.id')->all())->toBe([$second->id])
-        ->and($this->credential->fresh()->name)->toBe('Renamed')
-        ->and(AuditEntry::query()->orderBy('sequence')->pluck('event')->all())->toBe(['credential_updated', 'credential_links_changed']);
+    expect($this->credential->fresh()->host)->toBe('github.com');
 });
 
-it('saves nothing when the projects conflict', function () {
-    $project = Project::factory()->create();
-    $project->credentials()->attach(Credential::factory()->forHost('repo.magento.com')->create());
+it('moves the credential to another project and audits it', function () {
+    $target = Project::factory()->create();
 
     editCredential($this->credential)
-        ->set('projectIds', [$project->id])
-        ->set('name', 'Should not be saved')
-        ->call('save')
-        ->assertHasErrors(['projectIds']);
+        ->set('targetProjectId', $target->id)
+        ->call('move')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('projects.show', $target));
 
-    expect($this->credential->fresh()->name)->toBe('Magento')
-        ->and($this->credential->projects()->count())->toBe(0)
+    expect($this->credential->fresh()->project_id)->toBe($target->id)
+        ->and($this->credential->fresh()->revealSecret())->toBe('original-secret-marker')
+        ->and(session('flash'))->toBe('Credential moved.');
+
+    $entry = AuditEntry::query()->where('event', 'credential_moved')->sole();
+
+    expect($entry->subject_id)->toBe($this->credential->id)
+        ->and($entry->properties->toArray())->toMatchArray(['from_project_id' => $this->project->id, 'to_project_id' => $target->id]);
+});
+
+it('refuses to move to a project that holds the host already and leaves the credential unchanged', function () {
+    $target = Project::factory()->create();
+    Credential::factory()->for($target)->forHost('repo.magento.com')->create();
+
+    editCredential($this->credential)
+        ->set('targetProjectId', $target->id)
+        ->call('move')
+        ->assertHasErrors(['targetProjectId'])
+        ->assertNoRedirect();
+
+    expect($this->credential->fresh()->project_id)->toBe($this->project->id)
         ->and(AuditEntry::query()->count())->toBe(0);
 });
 
-it('lists the projects that lose the credential in the delete modal', function () {
-    $project = Project::factory()->create(['name' => 'Webshop EU']);
-    $this->credential->projects()->attach($project);
+it('does nothing when the target is the current project', function () {
+    editCredential($this->credential)->set('targetProjectId', $this->project->id)->call('move')->assertHasNoErrors();
 
-    editCredential($this->credential)
-        ->assertSee('Webshop EU')
-        ->assertSee('lose this credential');
+    expect($this->credential->fresh()->project_id)->toBe($this->project->id)
+        ->and(AuditEntry::query()->count())->toBe(0);
+});
+
+it('rejects a target project that does not exist', function () {
+    editCredential($this->credential)->set('targetProjectId', '01HZZZZZZZZZZZZZZZZZZZZZZZ')->call('move')->assertHasErrors(['targetProjectId']);
+
+    expect($this->credential->fresh()->project_id)->toBe($this->project->id);
 });
 
 it('deletes the credential through the action and audits it', function () {
-    $project = Project::factory()->create();
-    $this->credential->projects()->attach($project);
-
     editCredential($this->credential)
         ->call('delete')
-        ->assertRedirect(route('credentials.index'));
+        ->assertRedirect(route('projects.show', $this->project));
 
     expect(Credential::query()->count())->toBe(0)
         ->and(Project::query()->count())->toBe(1)
@@ -181,13 +192,13 @@ it('cannot be pointed at another credential through the locked id', function () 
 });
 
 it('gives a 404 for a credential that does not exist', function () {
-    $this->get(route('credentials.edit', '01HZZZZZZZZZZZZZZZZZZZZZZZ'))->assertNotFound();
+    $this->get(route('credentials.edit', [$this->project, '01HZZZZZZZZZZZZZZZZZZZZZZZ']))->assertNotFound();
 });
 
 it('renders the edit page without ever decrypting the secret', function () {
     config(['vault.key' => vaultTestKey(9)]);
 
-    $this->get(route('credentials.edit', $this->credential))->assertOk()->assertSeeLivewire('pages::credentials.edit');
+    $this->get(route('credentials.edit', [$this->project, $this->credential]))->assertOk()->assertSeeLivewire('pages::credentials.edit');
 
     expect(fn () => $this->credential->fresh()->revealSecret())->toThrow(DecryptionFailedException::class);
 });

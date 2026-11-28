@@ -20,16 +20,6 @@
                         {{ __('Projects') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('credentials.view')
-                    <flux:sidebar.item icon="key" :href="route('credentials.index')" :current="request()->routeIs('credentials.*')" wire:navigate>
-                        {{ __('Credentials') }}
-                    </flux:sidebar.item>
-                    @endcan
-                    @can('tokens.view')
-                    <flux:sidebar.item icon="ticket" :href="route('tokens.index')" :current="request()->routeIs('tokens.*')" wire:navigate>
-                        {{ __('Tokens') }}
-                    </flux:sidebar.item>
-                    @endcan
                 </flux:sidebar.group>
 
                 <flux:sidebar.group :heading="__('Activity')" class="grid">

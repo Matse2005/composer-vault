@@ -62,7 +62,7 @@ new #[Title('Access log')] class extends Component {
         $to = $this->day($this->to);
 
         return AccessLog::query()
-            ->with(['accessToken:id,token_prefix', 'project:id,slug'])
+            ->with(['accessToken:id,project_id,token_prefix', 'project:id,slug'])
             ->when($result !== null, fn ($query) => $query->where('result', $result->value))
             ->when($this->token !== '', fn ($query) => $query->where('access_token_id', $this->token))
             ->when($this->project !== '', fn ($query) => $query->where('project_id', $this->project))
@@ -145,7 +145,7 @@ new #[Title('Access log')] class extends Component {
                             <td class="px-4 py-2 font-mono text-xs">{{ $log->result->value }}</td>
                             <td class="px-4 py-2 font-mono text-xs">
                                 @if ($log->accessToken)
-                                    @can('tokens.manage')<flux:link :href="route('tokens.show', $log->accessToken)" wire:navigate>cv_{{ $log->accessToken->token_prefix }}...</flux:link>@elsecv_{{ $log->accessToken->token_prefix }}...@endcan
+                                    @can('tokens.manage')<flux:link :href="route('tokens.show', [$log->accessToken->project_id, $log->accessToken])" wire:navigate>cv_{{ $log->accessToken->token_prefix }}...</flux:link>@elsecv_{{ $log->accessToken->token_prefix }}...@endcan
                                 @else
                                     -
                                 @endif

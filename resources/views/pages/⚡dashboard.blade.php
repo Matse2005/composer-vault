@@ -82,11 +82,11 @@ new #[Title('Dashboard')] class extends Component {
             <flux:text>{{ __('Projects') }}</flux:text>
             <flux:heading size="xl" data-test="project-count">{{ $this->projectCount }}</flux:heading>
         </a>
-        <a href="{{ route('credentials.index') }}" wire:navigate class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+        <a href="{{ route('projects.index') }}" wire:navigate class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
             <flux:text>{{ __('Credentials') }}</flux:text>
             <flux:heading size="xl" data-test="credential-count">{{ $this->credentialCount }}</flux:heading>
         </a>
-        <a href="{{ route('tokens.index') }}" wire:navigate class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
+        <a href="{{ route('projects.index') }}" wire:navigate class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-700">
             <flux:text>{{ __('Active tokens') }}</flux:text>
             <flux:heading size="xl" data-test="active-token-count">{{ $this->activeTokenCount }}</flux:heading>
         </a>
