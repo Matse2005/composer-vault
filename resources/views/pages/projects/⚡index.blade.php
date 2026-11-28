@@ -75,7 +75,7 @@ new #[Title('Projects')] class extends Component {
         @endcan
     </div>
 
-    <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass" :placeholder="__('Search on name or slug')" clearable />
+    <flux:input wire:model.live.debounce.300ms="search" :aria-label="__('Search projects')" icon="magnifying-glass" :placeholder="__('Search on name or slug')" clearable />
 
     @if ($this->projects->isEmpty())
         <div class="rounded-panel border border-dashed border-border-strong p-10 text-center">

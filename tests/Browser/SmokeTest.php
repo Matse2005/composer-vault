@@ -35,20 +35,18 @@ it('lets an admin set up a project, credential and token and fetch the composer 
 
     $project = Project::query()->sole();
 
-    $page->navigate('/credentials/create')
+    $page->navigate('/projects/'.$project->id.'/credentials/create')
         ->type('[wire\:model="name"]', 'Magento repo')
         ->type('[wire\:model="host"]', 'repo.example.com')
         ->type('[wire\:model="username"]', 'repo-user')
         ->type('[wire\:model="secret"]', 'repo-secret-value');
-    $page->script("document.querySelector('ui-checkbox[value=\"{$project->id}\"]').click()");
     $page->press('form[wire\:submit] button[type="submit"]')
         ->waitForText('Credential created.');
 
     expect(Credential::query()->sole()->host)->toBe('repo.example.com');
 
-    $page->navigate('/tokens/create')
+    $page->navigate('/projects/'.$project->id.'/tokens/create')
         ->type('[wire\:model="name"]', 'ci-token');
-    $page->script("document.querySelector('ui-checkbox[value=\"{$project->id}\"]').click()");
     $page->press('form[wire\:submit] button[type="submit"]')
         ->waitForText('This token is shown once');
 
@@ -61,6 +59,16 @@ it('lets an admin set up a project, credential and token and fetch the composer 
     );
 
     expect(json_encode($response))->toContain('repo.example.com');
+
+    foreach ([[375, 800], [1280, 800]] as [$width, $height]) {
+        $page->resize($width, $height);
+
+        foreach (['/dashboard', '/projects', '/projects/'.$project->id, '/logs/access', '/logs/audit', '/admins', '/security-status'] as $path) {
+            $page->navigate($path)->assertPathIs($path);
+
+            expect($page->script('document.documentElement.scrollWidth <= window.innerWidth + 1'))->toBeTrue("Horizontal scroll on {$path} at {$width}px");
+        }
+    }
 
     $page->assertNoJavaScriptErrors()->assertNoConsoleLogs();
 });
