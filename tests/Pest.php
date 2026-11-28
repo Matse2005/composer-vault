@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AccessToken;
+use App\Models\AuditEntry;
 use App\Models\User;
 use Database\Factories\AccessTokenFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,4 +113,37 @@ function asOwner(callable $callback): mixed
 
         $owner->delete();
     }
+}
+
+/**
+ * Start a sign-in and return the state and nonce the vault put in the redirect.
+ *
+ * @return array{state: string, nonce: string, url: string}
+ */
+function startSso(): array
+{
+    $response = test()->get(route('sso.redirect'));
+    $response->assertRedirect();
+    $url = $response->headers->get('Location');
+    parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+    return ['state' => $query['state'], 'nonce' => $query['nonce'], 'url' => $url];
+}
+
+/**
+ * Run the callback with an ID token built from the claims.
+ *
+ * @param  array<string, mixed>  $claims
+ */
+function finishSso(array $claims = [], ?string $state = null, bool $useNonce = true): TestResponse
+{
+    $started = startSso();
+    test()->idp->nextIdToken = test()->idp->idToken($useNonce ? $started['nonce'] : 'other-nonce', $claims);
+
+    return test()->get(route('sso.callback', ['code' => 'auth-code', 'state' => $state ?? $started['state']]));
+}
+
+function lastRejection(): ?string
+{
+    return AuditEntry::query()->where('event', 'sso_login_rejected')->latest('sequence')->first()?->properties['reason'] ?? null;
 }

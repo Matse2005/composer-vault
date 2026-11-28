@@ -40,6 +40,7 @@ Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {
 
     Route::get('personal-data/{user}', PersonalDataController::class)->name('personal-data.export');
     Route::livewire('compliance/access-review', 'pages::compliance.access-review')->name('compliance.access-review')->middleware('can:'.Ability::ReviewAccess);
+    Route::livewire('compliance/report', 'pages::compliance.report')->name('compliance.report')->middleware('can:'.Ability::ViewLogs);
     Route::livewire('compliance/data-processing', 'pages::compliance.data-processing')->name('compliance.data-processing')->middleware('can:'.Ability::ViewVault);
 
     Route::middleware('can:'.Ability::ManageCompliance)->group(function () {

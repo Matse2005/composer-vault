@@ -4,7 +4,7 @@
         @include('partials.head')
     </head>
     <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+        <flux:sidebar sticky collapsible="mobile" class="print:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
@@ -83,6 +83,11 @@
                         {{ __('Incidents') }}
                     </flux:sidebar.item>
                     @endcan
+                    @can('logs.view')
+                    <flux:sidebar.item icon="document-chart-bar" :href="route('compliance.report')" :current="request()->routeIs('compliance.report')" wire:navigate>
+                        {{ __('Compliance report') }}
+                    </flux:sidebar.item>
+                    @endcan
                     @can('access.review')
                     <flux:sidebar.item icon="clipboard-document-check" :href="route('compliance.access-review')" :current="request()->routeIs('compliance.access-review')" wire:navigate>
                         {{ __('Access review') }}
@@ -110,7 +115,7 @@
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
-        <flux:header class="lg:hidden">
+        <flux:header class="print:hidden lg:hidden">
             <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
             <flux:spacer />
