@@ -3,6 +3,7 @@
 use App\Actions\Vault\AcceptInvitation;
 use App\Actions\Vault\InviteAdmin;
 use App\Actions\Vault\RevokeInvitation;
+use App\Enums\AdminRole;
 use App\Exceptions\Vault\InvalidInvitationException;
 use App\Exceptions\Vault\InvitationNotAllowedException;
 use App\Models\AuditEntry;
@@ -16,7 +17,11 @@ use Illuminate\Support\Facades\Notification;
 
 function invite(string $email = 'new.admin@example.com', ?User $inviter = null): IssuedInvitation
 {
-    return app(InviteAdmin::class)->handle($email, $inviter);
+    $temporary = $inviter === null ? User::factory()->create() : null;
+    $issued = app(InviteAdmin::class)->handle($email, $inviter ?? $temporary);
+    $temporary?->delete();
+
+    return $issued;
 }
 
 function plainTokenOf(IssuedInvitation $issued): string
@@ -56,7 +61,9 @@ it('defaults to an expiry of 48 hours', function () {
 });
 
 it('can be issued without an inviter, for the installer', function () {
-    expect(invite(inviter: null)->invitation->invited_by)->toBeNull();
+    $issued = app(InviteAdmin::class)->handleFirstOwner('first@example.test');
+
+    expect($issued->invitation->invited_by)->toBeNull()->and($issued->invitation->role)->toBe(AdminRole::Owner);
 });
 
 it('does not store the plain token in any column', function () {
@@ -137,7 +144,7 @@ it('allows a new invitation after the previous one expired, was revoked or was a
     $first = invite('new.admin@example.com');
     $first->invitation->forceFill(['expires_at' => now()->subMinute()])->save();
     $second = invite('new.admin@example.com');
-    app(RevokeInvitation::class)->handle($second->invitation);
+    asOwner(fn () => app(RevokeInvitation::class)->handle($second->invitation));
 
     expect(invite('new.admin@example.com')->invitation->isUsable())->toBeTrue()
         ->and(Invitation::query()->count())->toBe(3);
@@ -153,10 +160,10 @@ it('knows when an invitation is usable', function () {
 it('revokes an invitation once, keeps the first time and audits it exactly once', function () {
     $issued = invite();
 
-    app(RevokeInvitation::class)->handle($issued->invitation);
+    asOwner(fn () => app(RevokeInvitation::class)->handle($issued->invitation));
     $revokedAt = $issued->invitation->fresh()->revoked_at;
     $this->travel(1)->hours();
-    app(RevokeInvitation::class)->handle($issued->invitation->fresh());
+    asOwner(fn () => app(RevokeInvitation::class)->handle($issued->invitation->fresh()));
 
     $revocations = AuditEntry::query()->where('event', 'invitation_revoked')->get();
 
@@ -169,7 +176,7 @@ it('revokes an invitation once, keeps the first time and audits it exactly once'
 it('does not revoke an accepted invitation', function () {
     $invitation = Invitation::factory()->accepted()->create();
 
-    app(RevokeInvitation::class)->handle($invitation);
+    asOwner(fn () => app(RevokeInvitation::class)->handle($invitation));
 
     expect($invitation->fresh()->revoked_at)->toBeNull();
 });
@@ -229,7 +236,7 @@ it('gives the same exception and message for every invalid state', function (Clo
     }],
     'revoked' => [function () {
         $issued = invite();
-        app(RevokeInvitation::class)->handle($issued->invitation);
+        asOwner(fn () => app(RevokeInvitation::class)->handle($issued->invitation));
 
         return plainTokenOf($issued);
     }],

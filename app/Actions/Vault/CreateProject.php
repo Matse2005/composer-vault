@@ -5,7 +5,9 @@ namespace App\Actions\Vault;
 use App\Enums\AuditAction;
 use App\Models\Project;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class CreateProject
 {
@@ -18,6 +20,8 @@ class CreateProject
      */
     public function handle(array $attributes): Project
     {
+        Gate::authorize(Ability::ManageVault);
+
         return DB::transaction(function () use ($attributes): Project {
             $project = Project::query()->create($attributes);
 

@@ -39,6 +39,7 @@ it('creates the key, the first admin and the audit entry on a fresh database', f
         ->toContain("VAULT_KEY_VERSION=1\n")
         ->and($user->email)->toBe('first@example.test')
         ->and($user->email_verified_at)->not->toBeNull()
+        ->and($user->role->value)->toBe('owner')
         ->and(password_verify('a-Long-Passw0rd!', $user->password))->toBeTrue();
 
     $entry = AuditEntry::query()->where('event', 'vault_installed')->sole();
@@ -101,7 +102,8 @@ it('invites the first admin without interaction and creates no user', function (
 
     expect(User::query()->count())->toBe(0)
         ->and($invitation->email)->toBe('first@example.test')
-        ->and($invitation->invited_by)->toBeNull();
+        ->and($invitation->invited_by)->toBeNull()
+        ->and($invitation->role->value)->toBe('owner');
 
     $entry = AuditEntry::query()->where('event', 'vault_installed')->sole();
 

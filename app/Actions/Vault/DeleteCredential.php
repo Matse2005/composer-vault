@@ -5,7 +5,9 @@ namespace App\Actions\Vault;
 use App\Enums\AuditAction;
 use App\Models\Credential;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class DeleteCredential
 {
@@ -16,6 +18,8 @@ class DeleteCredential
      */
     public function handle(Credential $credential): void
     {
+        Gate::authorize(Ability::ManageVault);
+
         DB::transaction(function () use ($credential): void {
             $this->auditLogger->record(
                 AuditAction::CredentialDeleted,

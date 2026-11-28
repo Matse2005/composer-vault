@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Middleware\EnsureSecondFactor;
+use App\Http\Responses\SsoAwareLogoutResponse;
 use App\Models\User;
+use App\Vault\Sso\SsoConfig;
 use Illuminate\Auth\Middleware\RequirePassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -12,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Laravel\Fortify\Contracts\LogoutResponse;
 use Laravel\Fortify\Fortify;
 use Laravel\Passkeys\Contracts\PasskeyUser;
 use Laravel\Passkeys\Passkey;
@@ -25,7 +28,7 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(LogoutResponse::class, SsoAwareLogoutResponse::class);
     }
 
     /**
@@ -63,7 +66,7 @@ class FortifyServiceProvider extends ServiceProvider
 
             $user = User::query()->where(Fortify::username(), $request->input(Fortify::username()))->first();
 
-            if ($user === null || $user->isDeactivated() || ! Hash::check((string) $request->input('password'), $user->password)) {
+            if ($user === null || $user->isDeactivated() || ! Hash::check((string) $request->input('password'), $user->password) || ! app(SsoConfig::class)->allowsLocalLogin($user)) {
                 return null;
             }
 
@@ -76,7 +79,7 @@ class FortifyServiceProvider extends ServiceProvider
             return $user;
         });
 
-        Passkeys::authorizeLoginUsing(fn (Request $request, PasskeyUser $user, Passkey $passkey): bool => ! ($user instanceof User && $user->isDeactivated()));
+        Passkeys::authorizeLoginUsing(fn (Request $request, PasskeyUser $user, Passkey $passkey): bool => $user instanceof User && ! $user->isDeactivated() && app(SsoConfig::class)->allowsLocalLogin($user));
     }
 
     /**

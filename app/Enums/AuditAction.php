@@ -29,6 +29,24 @@ enum AuditAction: string
     case PasskeyRemoved = 'passkey_removed';
     case KeyRotated = 'key_rotated';
     case VaultInstalled = 'vault_installed';
+    case SettingsChanged = 'settings_changed';
+    case AdminRoleChanged = 'admin_role_changed';
+    case SsoLoginRejected = 'sso_login_rejected';
+    case SsoAccountLinked = 'sso_account_linked';
+    case AdminProvisioned = 'admin_provisioned';
+    case BreakGlassChanged = 'break_glass_changed';
+    case AdminReactivated = 'admin_reactivated';
+    case AuditLogPruned = 'audit_log_pruned';
+    case PersonalDataExported = 'personal_data_exported';
+    case TokensRevokedInBulk = 'tokens_revoked_in_bulk';
+    case AdminsSignedOut = 'admins_signed_out';
+    case LockdownChanged = 'lockdown_changed';
+    case IncidentCreated = 'incident_created';
+    case AccessReviewCompleted = 'access_review_completed';
+    case IncidentUpdated = 'incident_updated';
+    case IncidentTimelineExported = 'incident_timeline_exported';
+    case AdminPseudonymised = 'admin_pseudonymised';
+    case BreakGlassLogin = 'break_glass_login';
 
     /**
      * Get the short English sentence stored as the description of the entry, for example "Credential created".

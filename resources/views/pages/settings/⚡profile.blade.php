@@ -121,5 +121,11 @@ new #[Title('Profile settings')] class extends Component {
 
             </div>
         </form>
+
+        <div class="mt-8 space-y-2">
+            <flux:heading size="lg" level="2">{{ __('Your personal data') }}</flux:heading>
+            <flux:text>{{ __('Download what this vault holds about you: your profile, second factor names, sessions and the audit entries you caused.') }}</flux:text>
+            <flux:button :href="route('personal-data.export', auth()->user())" icon="arrow-down-tray" data-test="export-personal-data">{{ __('Download my data') }}</flux:button>
+        </div>
     </x-pages::settings.layout>
 </section>

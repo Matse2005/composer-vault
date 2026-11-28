@@ -6,9 +6,12 @@ use App\Enums\AuditAction;
 use App\Exceptions\Vault\TokenIssuingFailedException;
 use App\Models\AccessToken;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use App\Vault\Tokens\IssuedToken;
 use App\Vault\Tokens\TokenIssuer;
+use App\Vault\Tokens\TokenPolicy;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class RegenerateAccessToken
 {
@@ -25,6 +28,9 @@ class RegenerateAccessToken
      */
     public function handle(AccessToken $token): IssuedToken
     {
+        Gate::authorize(Ability::ManageVault);
+        TokenPolicy::assertAllows($token->expires_at);
+
         return DB::transaction(function () use ($token): IssuedToken {
             $oldPrefix = $token->token_prefix;
 

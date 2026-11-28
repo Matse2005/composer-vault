@@ -20,6 +20,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Vault\Audit\AuditChainVerifier;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -157,15 +158,13 @@ it('audits issuing, regenerating and revoking a token', function () {
         ->and($entries[2]->properties->toArray())->toEqual(['token_prefix' => $regenerated->token->token_prefix]);
 });
 
-it('audits issuing a token without an actor when called from the console', function () {
+it('refuses to issue a token when nobody is logged in and audits nothing', function () {
     $this->app['auth']->forgetGuards();
 
-    $issued = app(IssueAccessToken::class)->handle('installer', [], null, null, null);
+    expect(fn () => app(IssueAccessToken::class)->handle('installer', [], null, null, null))
+        ->toThrow(AuthorizationException::class);
 
-    $entry = AuditEntry::query()->sole();
-
-    expect($entry->event)->toBe('token_issued')
-        ->and($entry->subject_id)->toBe($issued->token->id);
+    expect(AuditEntry::query()->count())->toBe(0);
 });
 
 it('writes no entry when an action fails', function () {

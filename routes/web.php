@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\SsoController;
+use App\Http\Middleware\EnsureSsoEnabled;
 use App\Http\Middleware\RequireUsableInvitation;
 use Illuminate\Support\Facades\Route;
 
@@ -7,6 +9,11 @@ Route::get('/', fn () => redirect()->route(auth()->check() ? 'dashboard' : 'logi
 
 Route::middleware(['guest', 'throttle:invitations', RequireUsableInvitation::class])->group(function () {
     Route::livewire('invitations/{token}', 'pages::auth.accept-invitation')->name('invitations.accept');
+});
+
+Route::middleware(['guest', EnsureSsoEnabled::class, 'throttle:sso'])->prefix('auth/sso')->group(function () {
+    Route::get('redirect', [SsoController::class, 'redirect'])->name('sso.redirect');
+    Route::get('callback', [SsoController::class, 'callback'])->name('sso.callback');
 });
 
 Route::middleware(['auth', 'verified', 'second-factor'])->group(function () {

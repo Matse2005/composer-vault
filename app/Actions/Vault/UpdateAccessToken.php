@@ -5,9 +5,12 @@ namespace App\Actions\Vault;
 use App\Enums\AuditAction;
 use App\Models\AccessToken;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use App\Vault\Tokens\IpAllowlist;
+use App\Vault\Tokens\TokenPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
 class UpdateAccessToken
@@ -25,6 +28,12 @@ class UpdateAccessToken
      */
     public function handle(AccessToken $token, string $name, array $projectIds, ?array $allowedIps, ?CarbonImmutable $expiresAt): AccessToken
     {
+        Gate::authorize(Ability::ManageVault);
+
+        if ($token->expires_at?->getTimestamp() !== $expiresAt?->getTimestamp()) {
+            TokenPolicy::assertAllows($expiresAt);
+        }
+
         $allowedIps = IpAllowlist::normalizeList($allowedIps);
 
         return DB::transaction(function () use ($token, $name, $projectIds, $allowedIps, $expiresAt): AccessToken {

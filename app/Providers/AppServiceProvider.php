@@ -5,9 +5,13 @@ namespace App\Providers;
 use App\Enums\AccessResult;
 use App\Http\ApiError;
 use App\Models\AccessToken;
+use App\Models\User;
 use App\Vault\Audit\AuditAuthenticationEvents;
+use App\Vault\Authorization\Ability;
+use App\Vault\Compliance\NotificationTargets;
 use App\Vault\Crypto\EnvKeyProvider;
 use App\Vault\Crypto\KeyProvider;
+use App\Vault\Health\AccessReviewCheck;
 use App\Vault\Health\AdminExistsCheck;
 use App\Vault\Health\AuditChainCheck;
 use App\Vault\Health\CspEnforcedCheck;
@@ -15,22 +19,27 @@ use App\Vault\Health\EnvFilePermissionsCheck;
 use App\Vault\Health\HttpsCheck;
 use App\Vault\Health\KeyVersionsCheck;
 use App\Vault\Health\SecondFactorCheck;
+use App\Vault\Health\SecurityLogChannelCheck;
 use App\Vault\Health\SessionCheck;
-use App\Vault\Health\SlackWebhookChannel;
 use App\Vault\Health\SodiumCheck;
+use App\Vault\Health\SsoConfigurationCheck;
 use App\Vault\Health\TrustedProxiesCheck;
 use App\Vault\Health\VaultKeyCheck;
 use App\Vault\RequestAttributes;
+use App\Vault\Settings\VaultSettings;
+use App\Vault\Sso\SsoLogout;
 use App\Vault\Tokens\AdminIpList;
 use App\Vault\Tokens\TrustedProxyList;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -43,7 +52,6 @@ use Spatie\Health\Checks\Checks\DebugModeCheck;
 use Spatie\Health\Checks\Checks\EnvironmentCheck;
 use Spatie\Health\Checks\Checks\ScheduleCheck;
 use Spatie\Health\Facades\Health;
-use Spatie\Health\Notifications\CheckFailedNotification;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -53,6 +61,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(KeyProvider::class, EnvKeyProvider::class);
+        $this->app->scoped(VaultSettings::class);
     }
 
     /**
@@ -64,6 +73,7 @@ class AppServiceProvider extends ServiceProvider
         AdminIpList::parse(config('vault.admin.allowed_ips'));
 
         $this->configureDefaults();
+        $this->configureAuthorization();
         $this->configureRateLimiting();
         $this->configureAuditListeners();
         $this->configureHealthChecks();
@@ -91,24 +101,25 @@ class AppServiceProvider extends ServiceProvider
             SecondFactorCheck::new(),
             AuditChainCheck::new(),
             AdminExistsCheck::new(),
+            SsoConfigurationCheck::new(),
+            SecurityLogChannelCheck::new(),
+            AccessReviewCheck::new(),
         ]);
 
-        $channels = [];
-
-        if (filled(config('vault.health.notify_mail'))) {
-            $channels[] = 'mail';
-            config(['health.notifications.mail.to' => config('vault.health.notify_mail')]);
+        if ($this->app->runningInConsole()) {
+            NotificationTargets::applyToHealthConfig();
         }
+    }
 
-        if (filled(config('vault.health.notify_slack_webhook'))) {
-            $channels[] = SlackWebhookChannel::class;
-            config(['health.notifications.slack.webhook_url' => config('vault.health.notify_slack_webhook')]);
+    /**
+     * Define one gate per capability. A role holds a capability only when Ability lists it, and a deactivated admin
+     * holds none.
+     */
+    protected function configureAuthorization(): void
+    {
+        foreach (Ability::all() as $ability) {
+            Gate::define($ability, fn (User $user): bool => $user->hasAbility($ability));
         }
-
-        config([
-            'health.notifications.notifications' => [CheckFailedNotification::class => $channels],
-            'health.notifications.enabled' => $channels !== [],
-        ]);
     }
 
     /**
@@ -117,6 +128,7 @@ class AppServiceProvider extends ServiceProvider
     protected function configureAuditListeners(): void
     {
         Event::listen(Login::class, [AuditAuthenticationEvents::class, 'handleLogin']);
+        Event::listen(Logout::class, [SsoLogout::class, 'capture']);
         Event::listen(TwoFactorAuthenticationConfirmed::class, [AuditAuthenticationEvents::class, 'handleTwoFactorConfirmed']);
         Event::listen(TwoFactorAuthenticationDisabled::class, [AuditAuthenticationEvents::class, 'handleTwoFactorDisabled']);
         Event::listen(PasskeyRegistered::class, [AuditAuthenticationEvents::class, 'handlePasskeyRegistered']);
@@ -128,6 +140,7 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureRateLimiting(): void
     {
+        RateLimiter::for('sso', fn (Request $request): Limit => Limit::perMinute(10)->by((string) $request->ip()));
         RateLimiter::for('invitations', fn (Request $request): Limit => Limit::perMinute(10)->by((string) $request->ip()));
 
         RateLimiter::for('vault-api', function (Request $request): Limit {

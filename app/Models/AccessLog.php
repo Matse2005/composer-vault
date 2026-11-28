@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AccessResult;
+use App\Vault\Settings\VaultSettings;
 use Database\Factories\AccessLogFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -35,7 +36,7 @@ class AccessLog extends Model
      */
     public function prunable(): Builder
     {
-        return static::query()->where('created_at', '<', now()->subDays((int) config('vault.access_log_retention_days')));
+        return static::query()->where('created_at', '<', now()->subDays(app(VaultSettings::class)->accessLogRetentionDays()));
     }
 
     /**

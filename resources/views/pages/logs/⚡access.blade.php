@@ -145,7 +145,7 @@ new #[Title('Access log')] class extends Component {
                             <td class="px-4 py-2 font-mono text-xs">{{ $log->result->value }}</td>
                             <td class="px-4 py-2 font-mono text-xs">
                                 @if ($log->accessToken)
-                                    <flux:link :href="route('tokens.show', $log->accessToken)" wire:navigate>cv_{{ $log->accessToken->token_prefix }}...</flux:link>
+                                    @can('vault.manage')<flux:link :href="route('tokens.show', $log->accessToken)" wire:navigate>cv_{{ $log->accessToken->token_prefix }}...</flux:link>@elsecv_{{ $log->accessToken->token_prefix }}...@endcan
                                 @else
                                     -
                                 @endif

@@ -5,7 +5,9 @@ namespace App\Actions\Vault;
 use App\Enums\AuditAction;
 use App\Models\Project;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Authorization\Ability;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class DeleteProject
 {
@@ -16,6 +18,8 @@ class DeleteProject
      */
     public function handle(Project $project): void
     {
+        Gate::authorize(Ability::ManageVault);
+
         DB::transaction(function () use ($project): void {
             $this->auditLogger->record(
                 AuditAction::ProjectDeleted,

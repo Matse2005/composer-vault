@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\AdminRole;
 use App\Models\Invitation;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -21,6 +22,7 @@ class InvitationFactory extends Factory
         return [
             'email' => fake()->unique()->safeEmail(),
             'token_hash' => hash('sha256', Str::random(48)),
+            'role' => AdminRole::Admin,
             'invited_by' => null,
             'expires_at' => now()->addHours(48),
             'accepted_at' => null,

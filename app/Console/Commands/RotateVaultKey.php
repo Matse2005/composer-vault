@@ -2,15 +2,20 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\AlertRule;
 use App\Enums\AuditAction;
 use App\Exceptions\Vault\DecryptionFailedException;
 use App\Exceptions\Vault\InvalidVaultKeyException;
 use App\Models\Credential;
+use App\Models\VaultSetting;
 use App\Vault\Audit\AuditLogger;
+use App\Vault\Compliance\SecurityAlerts;
+use App\Vault\Crypto\EncryptedSecret;
 use App\Vault\Crypto\KeyProvider;
 use App\Vault\Crypto\MasterKey;
 use App\Vault\Crypto\RotatingKeyProvider;
 use App\Vault\Crypto\SecretCipher;
+use App\Vault\Settings\VaultSettings;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -65,8 +70,33 @@ class RotateVaultKey extends Command
                 }
             }
 
+            $rewrappedSettings = [];
+
+            foreach (VaultSettings::SECRET_KEYS as $key) {
+                $row = VaultSetting::query()->whereKey($key)->lockForUpdate()->first();
+
+                if ($row === null || ! is_array($row->value)) {
+                    continue;
+                }
+
+                try {
+                    $new = $cipher->rewrap(VaultSettings::secretContext($key), new EncryptedSecret(
+                        base64_decode((string) $row->value['secret']),
+                        base64_decode((string) $row->value['data_key']),
+                        (int) $row->value['key_version'],
+                    ));
+                    $rewrappedSettings[$key] = [...$row->value, 'data_key' => base64_encode($new->dataKeyCiphertext), 'key_version' => $new->keyVersion];
+                } catch (DecryptionFailedException) {
+                    $failedIds[] = 'setting:'.$key;
+                }
+            }
+
             if ($failedIds !== []) {
                 return;
+            }
+
+            foreach ($rewrappedSettings as $key => $value) {
+                VaultSetting::query()->whereKey($key)->update(['value' => $value]);
             }
 
             foreach ($rewrapped as $id => $encrypted) {
@@ -84,6 +114,10 @@ class RotateVaultKey extends Command
                 'credential_count' => $rotated,
             ]);
         });
+
+        if ($failedIds === []) {
+            app(SecurityAlerts::class)->send(AlertRule::KeyRotation, 'key-version-'.$newKey->version, "The vault key was rotated to version {$newKey->version}.");
+        }
 
         if ($failedIds !== []) {
             $this->components->error(count($failedIds).' credential(s) could not be decrypted with the known keys. Nothing was changed.');

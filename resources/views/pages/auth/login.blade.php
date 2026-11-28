@@ -5,7 +5,19 @@
         <!-- Session Status -->
         <x-auth-session-status class="text-center" :status="session('status')" />
 
+        @php($sso = app(\App\Vault\Sso\SsoConfig::class))
+
+        @if ($sso->isActive())
+            <flux:button variant="filled" icon="arrow-right-end-on-rectangle" :href="route('sso.redirect')" class="w-full" data-test="sso-button">
+                {{ $sso->buttonLabel() }}
+            </flux:button>
+        @endif
+
         <x-passkey-verify />
+
+        @if ($sso->enforced())
+            <flux:text class="text-center text-sm">{{ __('Single sign-on is required. Break-glass Owners can sign in below.') }}</flux:text>
+        @endif
 
         <form method="POST" action="{{ route('login.store') }}" class="flex flex-col gap-6">
             @csrf
